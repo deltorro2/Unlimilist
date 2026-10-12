@@ -1,0 +1,27 @@
+[project]
+name = "unlimilist"
+version = "0.1.0"
+description = "Personal Kanban task manager"
+requires-python = ">=3.13"
+dependencies = [
+    "pyside6-essentials>=6.8",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+unlimilist = "unlimilist.app:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-qt>=4.4",
+    "pyinstaller>=6.11",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyside6"

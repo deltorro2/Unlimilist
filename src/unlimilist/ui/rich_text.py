@@ -7,11 +7,22 @@ from PySide6.QtGui import (
     QFontDatabase,
     QKeySequence,
     QShortcut,
+    QTextBlockFormat,
     QTextCharFormat,
+    QTextCursor,
     QTextDocument,
     QTextListFormat,
 )
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QInputDialog, QTextEdit, QToolButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QInputDialog,
+    QSizePolicy,
+    QTextEdit,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from unlimilist.ui.icons import icon
 
@@ -32,8 +43,18 @@ class _LinkAwareTextEdit(QTextEdit):
         super().mouseMoveEvent(event)
 
 
+def _is_subtask(block) -> bool:
+    # Qt's Markdown import can leave a marker on the paragraph after a list, so the list itself is checked too.
+    return (
+        block.isValid()
+        and block.textList() is not None
+        and block.blockFormat().marker() != QTextBlockFormat.MarkerType.NoMarker
+    )
+
+
 class RichTextEditor(QWidget):
-    def __init__(self, placeholder: str = "", parent=None):
+    def __init__(self, placeholder: str = "", parent=None, subtasks: bool = False):
+        """`subtasks` adds the "Add subtask" button; Details has it, Usable data does not."""
         super().__init__(parent)
         self.text_edit = _LinkAwareTextEdit()
         self.text_edit.setPlaceholderText(placeholder)
@@ -72,6 +93,22 @@ class RichTextEditor(QWidget):
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             button.clicked.connect(handler)
             toolbar.addWidget(button)
+        self.add_subtask_button = None
+        if subtasks:
+            separator = QFrame()
+            separator.setObjectName("toolbarSeparator")
+            separator.setFixedSize(1, 18)
+            toolbar.addWidget(separator)
+            self.add_subtask_button = QToolButton()
+            self.add_subtask_button.setObjectName("editorButton")
+            self.add_subtask_button.setIcon(icon("list-todo"))
+            self.add_subtask_button.setIconSize(QSize(18, 18))
+            self.add_subtask_button.setText("Add subtask")
+            self.add_subtask_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            self.add_subtask_button.setToolTip("Add a Subtask after the last one, above the other text")
+            self.add_subtask_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self.add_subtask_button.clicked.connect(self.add_subtask)
+            toolbar.addWidget(self.add_subtask_button)
         toolbar.addStretch(1)
         for sequence, handler in [
             (QKeySequence.StandardKey.Bold, self._toggle_bold),
@@ -93,6 +130,11 @@ class RichTextEditor(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(box)
 
+        # The dialog shares its height between editors by stretch, so ask only for the toolbar and two lines.
+        two_lines = 2 * self.text_edit.fontMetrics().lineSpacing() + 28
+        self.setMinimumHeight(toolbar_widget.sizeHint().height() + two_lines)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Ignored)
+
     def markdown(self) -> str:
         if not self.text_edit.toPlainText().strip():
             return ""
@@ -100,6 +142,30 @@ class RichTextEditor(QWidget):
 
     def set_markdown(self, text: str) -> None:
         self.text_edit.document().setMarkdown(text, QTextDocument.MarkdownFeature.MarkdownDialectGitHub)
+
+    def add_subtask(self) -> None:
+        """Start an empty Subtask after the last Subtask at the top, before any other text."""
+        document = self.text_edit.document()
+        last = None
+        block = document.firstBlock()
+        while _is_subtask(block):
+            last, block = block, block.next()
+        cursor = QTextCursor(document)
+        if last is not None:
+            cursor.setPosition(last.position() + last.length() - 1)
+            cursor.insertBlock()
+        else:
+            if document.characterCount() > 1:  # some text already: open an empty block above it
+                cursor.insertBlock()
+                cursor.movePosition(QTextCursor.MoveOperation.PreviousBlock)
+            cursor.setBlockFormat(QTextBlockFormat())
+            cursor.setBlockCharFormat(QTextCharFormat())
+            cursor.createList(QTextListFormat.Style.ListDisc)
+        block_format = cursor.blockFormat()
+        block_format.setMarker(QTextBlockFormat.MarkerType.Unchecked)
+        cursor.setBlockFormat(block_format)
+        self.text_edit.setTextCursor(cursor)
+        self.text_edit.setFocus()
 
     def _merge(self, fmt: QTextCharFormat) -> None:
         self.text_edit.mergeCurrentCharFormat(fmt)

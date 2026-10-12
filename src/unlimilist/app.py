@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication
 
 from unlimilist.board import Board
 from unlimilist.store import MarkdownTaskStore
+from unlimilist.ui.icons import app_icon
 from unlimilist.ui.main_window import MainWindow
 
 STYLESHEET = """
@@ -16,6 +17,9 @@ QMainWindow, QWidget#central { background: #F4F5F8; }
 QToolBar { background: #FFFFFF; border: none; border-bottom: 1px solid #E2E4EA; padding: 4px 8px; spacing: 8px; }
 QToolBar QToolButton { background: #2F6FED; color: white; border-radius: 6px; padding: 5px 12px; font-weight: 600; }
 QToolBar QToolButton:hover { background: #255CD0; }
+QLabel#appTitle { font-size: 20px; font-weight: 700; color: #1B1B1F; }
+QLabel#versionBadge { background: transparent; border: 1.5px solid #E53935; border-radius: 13px;
+    color: #E53935; font-size: 10px; font-weight: 700; }
 
 QListWidget#sidebar { background: #ECEEF3; border: none; border-right: 1px solid #DDE0E7; padding: 10px 6px; font-size: 14px; color: #1B1B1F; }
 QListWidget#sidebar::item { padding: 8px 10px; border-radius: 6px; }
@@ -28,9 +32,11 @@ QFrame#lane { background: #F6F7FA; border: 1px solid #DCDFE6; border-radius: 8px
 QFrame#lane[dropSide="all"] { background: #EAF1FF; border: 2px dashed #2F6FED; }
 QFrame#lane[dropSide="left"] { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E3EDFF, stop:0.499 #E3EDFF, stop:0.5 #F6F7FA, stop:1 #F6F7FA); border: 2px dashed #2F6FED; }
 QFrame#lane[dropSide="right"] { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F6F7FA, stop:0.499 #F6F7FA, stop:0.5 #E0F5F1, stop:1 #E0F5F1); border: 2px dashed #1E9E8A; }
+QFrame#lane[dropSide="blocked"] { background: #F6F7FA; border: 2px dashed #C9CCD3; }
 QWidget#cardRow { background: transparent; }
 QLabel#laneHeader { font-size: 12px; font-weight: 600; color: #5A5F6B; padding: 2px 6px; text-transform: uppercase; }
 QLabel#laneHint { font-size: 11px; color: #2F6FED; padding: 0 6px; }
+QFrame#lane[dropSide="blocked"] QLabel#laneHint { color: #D32F2F; }
 QWidget#laneBody { background: transparent; }
 QFrame#dropIndicator { background: #2F6FED; border-radius: 1px; }
 QScrollArea { background: transparent; }
@@ -68,7 +74,8 @@ def tasks_folder() -> Path:
 
 def main() -> int:
     app = QApplication(sys.argv)
-    app.setApplicationName("Unlimilist")
+    app.setApplicationName("Unlimilist")  # also names the data folder, so it keeps this spelling
+    app.setWindowIcon(app_icon())
     app.setStyle("Fusion")
     app.setPalette(_light_palette())
     app.setStyleSheet(STYLESHEET)

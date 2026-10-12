@@ -1,6 +1,10 @@
 """Line icons (Lucide style) rendered from inline SVG, crisp on Retina screens."""
 
+from pathlib import Path
+
 from PySide6.QtGui import QIcon, QPixmap
+
+_APP_ICON = Path(__file__).resolve().parent.parent / "assets" / "app_icon.png"
 
 _PATHS = {
     "bold": '<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>',
@@ -12,6 +16,8 @@ _PATHS = {
     '<path d="M8 18h13"/><path d="M8 6h13"/>',
     "list-ordered": '<path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><path d="M4 10h2"/>'
     '<path d="M4 6h1v4"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+    "list-todo": '<rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/>'
+    '<path d="M13 12h8"/><path d="M13 18h8"/>',
     "code": '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
     "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>'
     '<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
@@ -44,3 +50,8 @@ def icon(name: str, colour: str = "#3A3D45", size: int = 18, disabled_colour: st
     result = QIcon(pixmap(name, colour, size))
     result.addPixmap(pixmap(name, disabled_colour, size), QIcon.Mode.Disabled)
     return result
+
+
+def app_icon() -> QIcon:
+    """The Unlimilist app icon, for the window and the Dock."""
+    return QIcon(str(_APP_ICON))

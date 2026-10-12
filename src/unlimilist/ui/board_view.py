@@ -1,6 +1,6 @@
 """The Board: one Column per Stage. Done is narrower."""
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QPoint, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from unlimilist.board import Board
@@ -14,7 +14,7 @@ _STRETCH = {Stage.INBOX: 5, Stage.IN_PROCESS: 5, Stage.DONE: 3}
 
 class BoardView(QWidget):
     cardClicked = Signal(str)
-    taskDropped = Signal(str, object, object, int)
+    taskDropped = Signal(str, object, object, int, QPoint)
 
     def __init__(self, board: Board, parent=None):
         super().__init__(parent)

@@ -27,6 +27,11 @@ BOTTOM_PRIORITY = 999  # a rank past the bottom: the Board puts the Task last
 _LOCKED_BY_DATES = "Unavailable while a due date or deadline is set"
 _LOCKED_BY_DONE = "Not used for Done Tasks"
 _NEEDS_A_DATE = "Add a Due date or Deadline to make this a Time-limited Task."
+_DELETE_LOCKED = "Move the Task out of In Process to delete it"
+# How Details and Usable data share the room: the editor with text gets more of it.
+_SPLIT_FOR_DETAILS = (4, 1)
+_SPLIT_FOR_USABLE_DATA = (1, 4)
+_SPLIT_EVEN = (1, 1)
 
 STYLESHEET = """
 QDialog#taskDialog { background: #F2F2F5; }
@@ -74,6 +79,7 @@ QWidget#footer { background: #F2F2F5; }
 QPushButton#deleteButton { background: transparent; border: none; color: #D32F2F; font-size: 15px;
     font-weight: 500; padding: 6px 4px; text-align: left; }
 QPushButton#deleteButton:hover { color: #B71C1C; }
+QPushButton#deleteButton:disabled { color: #B8BBC3; }
 QPushButton#cancelButton { background: #FFFFFF; border: 1px solid #D5D7DD; border-radius: 8px;
     padding: 8px 26px; font-size: 15px; color: #1B1B1F; }
 QPushButton#cancelButton:hover { background: #F7F7F9; }
@@ -111,12 +117,12 @@ class TaskDialog(QDialog):
         self.setWindowTitle("Edit Task" if task else "New Task")
         self.setModal(True)
         self.setMinimumWidth(640)
-        self.resize(760, 860)
+        self.resize(900, 860)
 
         self.title_edit = QLineEdit()
         self.title_edit.setObjectName("titleEdit")
         self.title_edit.setPlaceholderText("What needs doing?")
-        self.details_editor = RichTextEditor("Describe the Task…")
+        self.details_editor = RichTextEditor(subtasks=True)
         self.usable_data_editor = RichTextEditor("Links, snippets, reference info…")
         self.due_date_field = DateField()
         self.deadline_field = DateField()
@@ -129,7 +135,7 @@ class TaskDialog(QDialog):
         dates.addWidget(self.due_date_field, 1, 0)
         dates.addWidget(self.deadline_field, 1, 1)
 
-        content = QVBoxLayout()
+        content = self._content = QVBoxLayout()
         content.setContentsMargins(26, 18, 26, 12)
         content.setSpacing(8)
         content.addWidget(_label("Title", required=True))
@@ -169,6 +175,9 @@ class TaskDialog(QDialog):
             self.due_date_field.set_date(task.due_date)
             self.deadline_field.set_date(task.deadline)
         self.priority_spin.setValue(task.priority if task and task.priority is not None else BOTTOM_PRIORITY)
+        for editor in (self.details_editor, self.usable_data_editor):
+            editor.text_edit.textChanged.connect(self._update_split)
+        self._update_split()
         self.due_date_field.dateChanged.connect(self._update_priority_lock)
         self.deadline_field.dateChanged.connect(self._update_priority_lock)
         self._update_priority_lock()
@@ -231,6 +240,9 @@ class TaskDialog(QDialog):
         self.delete_button.setAutoDefault(False)
         self.delete_button.clicked.connect(self._delete)
         self.delete_button.setHidden(self._task is None)
+        if self._task and self._task.stage == Stage.IN_PROCESS:
+            self.delete_button.setEnabled(False)
+            self.delete_button.setToolTip(_DELETE_LOCKED)
 
         cancel_button = QPushButton("Cancel")
         cancel_button.setObjectName("cancelButton")
@@ -252,6 +264,18 @@ class TaskDialog(QDialog):
         layout.addWidget(cancel_button)
         layout.addWidget(self.save_button)
         return footer
+
+    def _update_split(self) -> None:
+        has_details = bool(self.details_editor.text_edit.toPlainText().strip())
+        has_usable_data = bool(self.usable_data_editor.text_edit.toPlainText().strip())
+        if has_details and has_usable_data:
+            split = _SPLIT_EVEN
+        elif has_usable_data:
+            split = _SPLIT_FOR_USABLE_DATA
+        else:
+            split = _SPLIT_FOR_DETAILS
+        self._content.setStretchFactor(self.details_editor, split[0])
+        self._content.setStretchFactor(self.usable_data_editor, split[1])
 
     def _priority_lock_reason(self) -> str | None:
         if self._task and self._task.stage == Stage.DONE:

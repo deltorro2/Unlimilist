@@ -22,8 +22,9 @@ _CONVERSION_HINTS = {
 
 class ColumnWidget(QFrame):
     cardClicked = Signal(str)
-    # task id, target Stage, target LaneKind (None for Done), drop rank index among the Someday cards
-    taskDropped = Signal(str, object, object, int)
+    # task id, target Stage, target LaneKind (None for Done), drop rank index among the Someday cards,
+    # and the drop point on screen
+    taskDropped = Signal(str, object, object, int, QPoint)
 
     def __init__(self, stage: Stage, title: str, top_widget: QWidget | None = None, parent=None):
         super().__init__(parent)
@@ -85,6 +86,10 @@ class ColumnWidget(QFrame):
         if top_widget is not None:
             layout.addWidget(top_widget)
         layout.addWidget(self._body, 1)
+
+    def drop_hint(self) -> str:
+        """The hint shown while a Task is dragged over this Column, or "" when there is none."""
+        return "" if self._hint.isHidden() else self._hint.text()
 
     def cards(self) -> list[CardWidget]:
         """Cards in the order shown, top to bottom."""
@@ -156,15 +161,22 @@ class ColumnWidget(QFrame):
         if dragged is None:
             event.ignore()
             return
-        task_id, _ = dragged
         event.acceptProposedAction()
         pos = event.position().toPoint()
-        self.taskDropped.emit(task_id, self.stage, self._side(pos), self._someday_index(task_id, pos))
+        self.taskDropped.emit(
+            dragged.task_id, self.stage, self._side(pos), self._someday_index(dragged.task_id, pos), self.mapToGlobal(pos)
+        )
 
     def _update_drag(self, event) -> None:
-        task_id, kind = decode_drag(event.mimeData())
+        task_id, kind, unfinished = decode_drag(event.mimeData())
         pos = event.position().toPoint()
         side = self._side(pos)
+        if self.stage == Stage.DONE and unfinished:
+            # The Board will refuse it; say why rather than invite the drop.
+            self._set_drop_side("blocked")
+            self._hint.setText(f"{unfinished} unfinished {'subtask' if unfinished == 1 else 'subtasks'}")
+            self._hint.show()
+            return
         self._set_drop_side(side or "all")
         if side is None:
             self._hint.hide()
@@ -207,7 +219,9 @@ class ColumnWidget(QFrame):
         self._stack.removeWidget(self._indicator)
 
     def _set_drop_side(self, side) -> None:
-        value = {None: "", "all": "all", LaneKind.SOMEDAY: "left", LaneKind.TIME_LIMITED: "right"}[side]
+        value = {None: "", "all": "all", "blocked": "blocked", LaneKind.SOMEDAY: "left", LaneKind.TIME_LIMITED: "right"}[
+            side
+        ]
         self._body.setProperty("dropSide", value)
         self._body.style().unpolish(self._body)
         self._body.style().polish(self._body)

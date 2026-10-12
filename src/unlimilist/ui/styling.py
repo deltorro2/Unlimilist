@@ -13,10 +13,12 @@ _LANE_HUES: dict[tuple[Stage, LaneKind | None], int | None] = {
     (Stage.DONE, None): None,
 }
 
+# Due soon is a stripe down the left edge; a late Task (Overdue or Start passed) gets a red border instead.
 URGENCY_COLOURS = {
-    Urgency.OVERDUE: QColor("#E53935"),
     Urgency.DUE_SOON: QColor("#FFB300"),
 }
+LATE = (Urgency.OVERDUE, Urgency.START_PASSED)
+LATE_BORDER = QColor("#E53935")
 
 
 def card_fill(stage: Stage, kind: LaneKind | None, index: int, count: int) -> QColor:

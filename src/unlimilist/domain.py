@@ -1,5 +1,6 @@
 """Core domain types. See CONTEXT.md for the vocabulary."""
 
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
@@ -27,6 +28,23 @@ class InvalidTask(ValueError):
     """A Task's fields break a rule, e.g. a missing Title."""
 
 
+class DeleteRefused(ValueError):
+    """A Task in In Process cannot be deleted; it has to leave In Process first."""
+
+
+class UnfinishedSubtasks(ValueError):
+    """A Task cannot enter Done while some of its Subtasks are unfinished."""
+
+    def __init__(self, count: int):
+        self.count = count
+        noun = "subtask" if count == 1 else "subtasks"
+        super().__init__(f"You still have {count} unfinished {noun}")
+
+
+# A Markdown task-list item, e.g. "- [ ] Test" or "1. [x] Build".
+_SUBTASK = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\[([ xX])\]", re.MULTILINE)
+
+
 @dataclass(frozen=True)
 class Task:
     id: str
@@ -50,6 +68,14 @@ class Task:
     def earliest_date(self) -> date | None:
         dates = [d for d in (self.due_date, self.deadline) if d]
         return min(dates, default=None)
+
+    @property
+    def has_subtasks(self) -> bool:
+        return _SUBTASK.search(self.details) is not None
+
+    @property
+    def unfinished_subtasks(self) -> int:
+        return sum(1 for mark in _SUBTASK.findall(self.details) if mark == " ")
 
     def validate(self) -> None:
         if not self.title.strip():

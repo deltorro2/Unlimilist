@@ -6,7 +6,7 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import Protocol
 
-from unlimilist.domain import LaneKind, Stage, Task, Urgency
+from unlimilist.domain import DeleteRefused, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
 
 _KEEP = object()
 
@@ -105,8 +105,11 @@ class Board:
         """Move a Task to `stage`, into the Lane its dates imply.
 
         `priority` is the drop rank in a Someday Lane (bottom if None); it is ignored elsewhere.
+        Raises UnfinishedSubtasks if the Task would enter Done with Subtasks left to do.
         """
         task = self._tasks[task_id]
+        if stage == Stage.DONE and task.stage != Stage.DONE and task.unfinished_subtasks:
+            raise UnfinishedSubtasks(task.unfinished_subtasks)
         source = (task.stage, task.kind)
         if stage == Stage.DONE:
             completed_at = task.completed_at if task.stage == Stage.DONE else self._clock()
@@ -119,6 +122,8 @@ class Board:
         return self._tasks[task_id]
 
     def delete_task(self, task_id: str) -> None:
+        if self._tasks[task_id].stage == Stage.IN_PROCESS:
+            raise DeleteRefused("Move the Task out of In Process to delete it")
         task = self._tasks.pop(task_id)
         self._store.delete(task_id)
         self._renumber(task.stage, task.kind)
@@ -133,10 +138,10 @@ class Board:
             return Urgency.NONE
         if task.deadline and task.deadline < today:
             return Urgency.OVERDUE
+        if task.stage == Stage.INBOX and task.due_date and task.due_date < today:
+            return Urgency.START_PASSED  # late, so it outranks Due soon
         if task.deadline and task.deadline <= today + timedelta(days=1):
             return Urgency.DUE_SOON
-        if task.stage == Stage.INBOX and task.due_date and task.due_date < today:
-            return Urgency.START_PASSED
         return Urgency.NONE
 
     def lane(self, stage: Stage, kind: LaneKind | None = None) -> list[Task]:

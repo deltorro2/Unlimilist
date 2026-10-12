@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background: vivid violet → magenta → orange -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B3D91"/>
+      <stop offset="0.5" stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0.25" cy="0.2" r="0.6">
+      <stop offset="0" stop-color="#22D3EE" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#22D3EE" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.85" cy="0.85" r="0.55">
+      <stop offset="0" stop-color="#A3E635" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#A3E635" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Card -->
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F1ECFF"/>
+    </linearGradient>
+    <!-- Checkbox colors -->
+    <linearGradient id="cGreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4ADE80"/><stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="cBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38BDF8"/><stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="cPink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F472B6"/><stop offset="1" stop-color="#DB2777"/>
+    </linearGradient>
+    <!-- Infinity rainbow ribbon -->
+    <linearGradient id="rainbow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="0.25" stop-color="#22D3EE"/>
+      <stop offset="0.5" stop-color="#4ADE80"/>
+      <stop offset="0.75" stop-color="#FACC15"/>
+      <stop offset="1" stop-color="#FB923C"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0C4A6E" flood-opacity="0.45"/>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-50%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0C4A6E" flood-opacity="0.5"/>
+    </filter>
+    <filter id="iconShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <clipPath id="squircle">
+      <rect x="100" y="100" width="824" height="824" rx="185" ry="185"/>
+    </clipPath>
+  </defs>
+
+  <!-- macOS rounded-square base -->
+  <g filter="url(#iconShadow)">
+    <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#bg)"/>
+  </g>
+  <g clip-path="url(#squircle)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#glow1)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#glow2)"/>
+    <!-- Stacked cards behind = the list keeps going -->
+    <rect x="300" y="190" width="424" height="520" rx="48" fill="#FFFFFF" opacity="0.25" transform="rotate(-9 512 450)"/>
+    <rect x="285" y="200" width="454" height="530" rx="50" fill="#FFFFFF" opacity="0.45" transform="rotate(-4.5 512 460)"/>
+
+    <!-- Main task card -->
+    <g filter="url(#shadow)">
+      <rect x="262" y="214" width="500" height="540" rx="56" fill="url(#card)"/>
+    </g>
+    <!-- card header strip -->
+    <path d="M262 270 a56 56 0 0 1 56 -56 h388 a56 56 0 0 1 56 56 v26 h-500z" fill="#7C3AED" opacity="0.12"/>
+    <circle cx="314" cy="256" r="11" fill="#FB7185"/>
+    <circle cx="350" cy="256" r="11" fill="#FACC15"/>
+    <circle cx="386" cy="256" r="11" fill="#4ADE80"/>
+
+    <!-- Row 1: done (green) -->
+    <rect x="310" y="334" width="78" height="78" rx="22" fill="url(#cGreen)"/>
+    <path d="M330 374 l18 18 l32 -36" fill="none" stroke="#FFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="414" y="352" width="290" height="22" rx="11" fill="#A7F3D0"/>
+    <rect x="414" y="386" width="180" height="14" rx="7" fill="#D1FAE5"/>
+
+    <!-- Row 2: done (blue) -->
+    <rect x="310" y="450" width="78" height="78" rx="22" fill="url(#cBlue)"/>
+    <path d="M330 490 l18 18 l32 -36" fill="none" stroke="#FFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="414" y="468" width="250" height="22" rx="11" fill="#BAE6FD"/>
+    <rect x="414" y="502" width="200" height="14" rx="7" fill="#E0F2FE"/>
+
+    <!-- Row 3: open (pink outline) -->
+    <rect x="316" y="572" width="66" height="66" rx="19" fill="#FFF" stroke="url(#cPink)" stroke-width="12"/>
+    <rect x="414" y="584" width="270" height="22" rx="11" fill="#FBCFE8"/>
+    <rect x="414" y="618" width="150" height="14" rx="7" fill="#FCE7F3"/>
+
+    <!-- Infinity ribbon = "Unlimited" -->
+    <g filter="url(#softShadow)">
+      <path d="M512 800
+               C 448 700, 296 700, 296 800
+               C 296 900, 448 900, 512 800
+               C 576 700, 728 700, 728 800
+               C 728 900, 576 900, 512 800 Z"
+            fill="none" stroke="#FFFFFF" stroke-width="50" stroke-linejoin="round"/>
+      <path d="M512 800
+               C 448 700, 296 700, 296 800
+               C 296 900, 448 900, 512 800
+               C 576 700, 728 700, 728 800
+               C 728 900, 576 900, 512 800 Z"
+            fill="none" stroke="url(#rainbow)" stroke-width="32" stroke-linejoin="round"/>
+    </g>
+
+    <!-- top gloss -->
+    <rect x="100" y="100" width="824" height="824" fill="url(#gloss)"/>
+  </g>
+  <!-- subtle inner rim -->
+  <rect x="101.5" y="101.5" width="821" height="821" rx="184" ry="184" fill="none" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="3"/>
+</svg>

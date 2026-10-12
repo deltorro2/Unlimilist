@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from unlimilist.board import Board, InMemoryStore
-from unlimilist.domain import InvalidTask, LaneKind, Stage, Task, Urgency
+from unlimilist.domain import DeleteRefused, InvalidTask, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
 
 
 class FakeClock:
@@ -241,6 +241,7 @@ def test_deleting_a_task_closes_the_gap(board):
         (None, date(2026, 10, 14), Stage.INBOX, Urgency.NONE),
         (date(2026, 10, 11), date(2026, 10, 30), Stage.INBOX, Urgency.START_PASSED),
         (date(2026, 10, 11), date(2026, 10, 30), Stage.IN_PROCESS, Urgency.NONE),
+        (date(2026, 10, 11), date(2026, 10, 13), Stage.INBOX, Urgency.START_PASSED),  # late outranks Due soon
         (date(2026, 10, 12), None, Stage.INBOX, Urgency.NONE),
         (date(2026, 10, 1), date(2026, 10, 11), Stage.INBOX, Urgency.OVERDUE),
         (None, date(2026, 10, 1), Stage.DONE, Urgency.NONE),
@@ -319,3 +320,41 @@ def test_done_column_is_the_done_lane(board):
     board.move_task(t.id, Stage.DONE)
 
     assert titles(board.column(Stage.DONE)) == ["T", "A"]
+
+
+def test_a_task_with_unfinished_subtasks_cannot_enter_done(board):
+    task = board.add_task("Ship", details="- [x] Build\n- [ ] Test\n- [ ] Release\n\nNotes")
+
+    with pytest.raises(UnfinishedSubtasks) as refused:
+        board.move_task(task.id, Stage.DONE)
+
+    assert refused.value.count == 2
+    assert board.task(task.id).stage == Stage.INBOX
+
+
+def test_a_task_whose_subtasks_are_all_finished_can_enter_done(board):
+    task = board.add_task("Ship", details="- [x] Build\n- [X] Test")
+
+    board.move_task(task.id, Stage.DONE)
+
+    assert board.task(task.id).stage == Stage.DONE
+
+
+def test_a_done_task_keeps_its_place_when_a_subtask_is_unticked(board):
+    task = board.add_task("Ship", details="- [x] Build")
+    board.move_task(task.id, Stage.DONE)
+
+    board.edit_task(task.id, details="- [ ] Build\n- [ ] Celebrate")
+    board.move_task(task.id, Stage.DONE, priority=1)
+
+    assert board.task(task.id).stage == Stage.DONE
+
+
+def test_a_task_in_process_cannot_be_deleted(board):
+    task = board.add_task("Write report")
+    board.move_task(task.id, Stage.IN_PROCESS)
+
+    with pytest.raises(DeleteRefused):
+        board.delete_task(task.id)
+
+    assert board.task(task.id).stage == Stage.IN_PROCESS

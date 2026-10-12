@@ -25,7 +25,7 @@ How the Board shows one Stage: its Lanes interleaved, with Someday Tasks aligned
 _Avoid_: Merged lane, stack
 
 **Inbox / In Process / Done**:
-The three Stages. Inbox and In Process each have a Someday Lane and a Time-limited Lane. Done is a single list that holds both kinds of Task.
+The three Stages. Inbox and In Process each have a Someday Lane and a Time-limited Lane. Done is a single list that holds both kinds of Task. A Task in In Process cannot be deleted; it has to leave In Process first.
 
 **Priority**:
 A Someday Task's rank within its Lane: 1 is the top, and ranks run 1..N with no gaps or ties. A Someday Task always has a Priority. A new Task, or one that has just become Someday, starts at the bottom. Asking for a rank past the bottom (999 by convention) means the bottom.
@@ -37,6 +37,10 @@ The short required name of a Task.
 **Details**:
 Optional formatted text that describes what the Task is.
 _Avoid_: Description, notes
+
+**Subtask**:
+A checkbox item in a Task's Details, either finished (checked) or unfinished. Subtasks normally form one list at the start of the Details, before any other text, and a new Subtask goes at the end of that list. A checkbox found further down still counts as a Subtask. A Task with unfinished Subtasks cannot enter Done, but once in Done its Subtasks can be edited freely.
+_Avoid_: Checklist item, todo, child task
 
 **Usable data**:
 Optional formatted text holding material that helps with doing the Task, such as links, snippets or reference info.
@@ -62,8 +66,11 @@ A change from Someday Task to Time-limited Task or back, caused by adding or cle
 **Overdue**:
 A Task that is not Done and whose Deadline day has passed.
 
+**Start passed**:
+A Task still in Inbox whose Due date has passed: it should have been started already. Like an Overdue Task, it is flagged as late, which outranks Due soon.
+
 **Due soon**:
-A Task that is not Done and whose Deadline is today or tomorrow.
+A Task that is not Done and whose Deadline is today or tomorrow, and that is neither Overdue nor Start passed.
 
 **Completed on**:
 The date a Task entered Done. Done is ordered by it, most recent first.

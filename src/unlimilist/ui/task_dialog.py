@@ -1,6 +1,6 @@
 """The modal dialog that creates or edits a Task."""
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QEvent, QSize, Qt
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
     QDialog,
@@ -175,8 +175,11 @@ class TaskDialog(QDialog):
             self.due_date_field.set_date(task.due_date)
             self.deadline_field.set_date(task.deadline)
         self.priority_spin.setValue(task.priority if task and task.priority is not None else BOTTOM_PRIORITY)
+        # Until an editor is focused, the split follows the content; after that, the last focused editor leads.
+        self._focused_editor: RichTextEditor | None = None
         for editor in (self.details_editor, self.usable_data_editor):
             editor.text_edit.textChanged.connect(self._update_split)
+            editor.text_edit.installEventFilter(self)
         self._update_split()
         self.due_date_field.dateChanged.connect(self._update_priority_lock)
         self.deadline_field.dateChanged.connect(self._update_priority_lock)
@@ -265,17 +268,32 @@ class TaskDialog(QDialog):
         layout.addWidget(self.save_button)
         return footer
 
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.FocusIn:
+            for editor in (self.details_editor, self.usable_data_editor):
+                if watched is editor.text_edit:
+                    self._focused_editor = editor
+                    self._update_split()
+        return super().eventFilter(watched, event)
+
     def _update_split(self) -> None:
+        if self._focused_editor is self.details_editor:
+            split = _SPLIT_FOR_DETAILS
+        elif self._focused_editor is self.usable_data_editor:
+            split = _SPLIT_FOR_USABLE_DATA
+        else:
+            split = self._split_by_content()
+        self._content.setStretchFactor(self.details_editor, split[0])
+        self._content.setStretchFactor(self.usable_data_editor, split[1])
+
+    def _split_by_content(self) -> tuple[int, int]:
         has_details = bool(self.details_editor.text_edit.toPlainText().strip())
         has_usable_data = bool(self.usable_data_editor.text_edit.toPlainText().strip())
         if has_details and has_usable_data:
-            split = _SPLIT_EVEN
-        elif has_usable_data:
-            split = _SPLIT_FOR_USABLE_DATA
-        else:
-            split = _SPLIT_FOR_DETAILS
-        self._content.setStretchFactor(self.details_editor, split[0])
-        self._content.setStretchFactor(self.usable_data_editor, split[1])
+            return _SPLIT_EVEN
+        if has_usable_data:
+            return _SPLIT_FOR_USABLE_DATA
+        return _SPLIT_FOR_DETAILS
 
     def _priority_lock_reason(self) -> str | None:
         if self._task and self._task.stage == Stage.DONE:

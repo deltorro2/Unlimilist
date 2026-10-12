@@ -1,8 +1,8 @@
 from datetime import date, datetime, timedelta
 
 import pytest
-from PySide6.QtCore import QPoint, QPointF, Qt
-from PySide6.QtGui import QDragEnterEvent, QDropEvent, QTextCursor
+from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QFocusEvent, QTextCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from unlimilist.board import Board
@@ -253,6 +253,30 @@ def test_the_split_follows_typing(qtbot, board):
     details_height, usable_height = editor_heights(dialog)
 
     assert usable_height > 2.5 * details_height
+
+
+def give_focus(widget):
+    """Deliver the focus-in a click would; the offscreen test platform never activates windows."""
+    QApplication.sendEvent(widget, QFocusEvent(QEvent.Type.FocusIn, Qt.FocusReason.MouseFocusReason))
+
+
+def test_the_focused_editor_takes_the_room_and_keeps_it_until_the_other_is_focused(qtbot, board):
+    task = board.add_task("T", details="Notes", usable_data="Link")
+    dialog = TaskDialog(board, task)
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    give_focus(dialog.usable_data_editor.text_edit)
+    details_height, usable_height = editor_heights(dialog)
+    assert usable_height > 2.5 * details_height
+
+    give_focus(dialog.title_edit)
+    details_height, usable_height = editor_heights(dialog)
+    assert usable_height > 2.5 * details_height
+
+    give_focus(dialog.details_editor.text_edit)
+    details_height, usable_height = editor_heights(dialog)
+    assert details_height > 2.5 * usable_height
 
 
 def test_only_details_can_add_subtasks(qtbot, board):

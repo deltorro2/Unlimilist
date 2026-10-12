@@ -148,6 +148,15 @@ class Board:
             return sorted(tasks, key=lambda t: (t.priority is None, t.priority or 0, t.created_at, t.id))
         return sorted(tasks, key=lambda t: (t.earliest_date, t.created_at))
 
+    def column(self, stage: Stage) -> list[Task]:
+        """A Stage as the Board shows it: the first Time-limited Task, the top five Someday Tasks,
+        then the remaining Time-limited Tasks, then the remaining Someday Tasks."""
+        if stage == Stage.DONE:
+            return self.lane(Stage.DONE)
+        someday = self.lane(stage, LaneKind.SOMEDAY)
+        time_limited = self.lane(stage, LaneKind.TIME_LIMITED)
+        return time_limited[:1] + someday[:5] + time_limited[1:] + someday[5:]
+
     def _rank(self, task_id: str, priority: int | None) -> None:
         """Put a Someday Task at `priority` in its Lane (bottom if None) and renumber the Lane 1..N."""
         task = self._tasks[task_id]

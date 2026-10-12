@@ -289,3 +289,33 @@ def test_opening_a_board_repairs_duplicate_and_missing_priorities():
     lane = board.lane(Stage.INBOX, LaneKind.SOMEDAY)
     assert titles(lane) == ["A", "B", "C", "D"]
     assert [t.priority for t in lane] == [1, 2, 3, 4]
+
+
+def test_column_interleaves_first_time_limited_then_top_five_someday(board):
+    for n in range(1, 9):
+        board.add_task(f"S{n}")
+    for n in range(1, 4):
+        board.add_task(f"T{n}", deadline=date(2026, 11, n))
+
+    assert titles(board.column(Stage.INBOX)) == [
+        "T1", "S1", "S2", "S3", "S4", "S5", "T2", "T3", "S6", "S7", "S8",
+    ]
+
+
+def test_column_with_only_one_kind_is_just_that_lane(board):
+    board.add_task("S1")
+    board.add_task("S2")
+    t = board.add_task("T1", deadline=date(2026, 11, 1))
+    board.move_task(t.id, Stage.IN_PROCESS)
+
+    assert titles(board.column(Stage.INBOX)) == ["S1", "S2"]
+    assert titles(board.column(Stage.IN_PROCESS)) == ["T1"]
+
+
+def test_done_column_is_the_done_lane(board):
+    a = board.add_task("A")
+    t = board.add_task("T", deadline=date(2026, 11, 1))
+    board.move_task(a.id, Stage.DONE)
+    board.move_task(t.id, Stage.DONE)
+
+    assert titles(board.column(Stage.DONE)) == ["T", "A"]

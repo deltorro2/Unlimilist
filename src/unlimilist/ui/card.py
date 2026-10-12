@@ -1,16 +1,35 @@
-"""A Task drawn as a raised card that can be clicked or dragged."""
+"""A Task drawn as a raised, square-cornered card that can be clicked or dragged."""
 
 from PySide6.QtCore import QByteArray, QMimeData, QPoint, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QDrag, QLinearGradient, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import QApplication, QFrame, QGraphicsDropShadowEffect, QLabel, QVBoxLayout
+from PySide6.QtGui import (
+    QColor,
+    QDrag,
+    QFont,
+    QFontMetrics,
+    QLinearGradient,
+    QPainter,
+    QPen,
+    QTextDocument,
+    QTextLayout,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QGraphicsDropShadowEffect,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QVBoxLayout,
+)
 
 from unlimilist.domain import LaneKind, Stage, Task, Urgency
 from unlimilist.ui.date_field import format_date
 from unlimilist.ui.styling import URGENCY_COLOURS, text_colour
 
 TASK_MIME_TYPE = "application/x-unlimilist-task"
-_RADIUS = 8
 _STRIPE = 5
+_MAX_LINES = 4
+_MAX_TITLE_LINES = 2
 
 
 def encode_drag(task: Task) -> QMimeData:
@@ -26,6 +45,35 @@ def decode_drag(mime: QMimeData) -> tuple[str, LaneKind] | None:
     return task_id, LaneKind(kind)
 
 
+def plain_text(markdown: str) -> str:
+    """Markdown flattened to one line of plain text, for previews."""
+    document = QTextDocument()
+    document.setMarkdown(markdown)
+    return " ".join(document.toPlainText().split())
+
+
+def wrap_lines(text: str, font: QFont, width: int, max_lines: int) -> list[str]:
+    """`text` word-wrapped to `width`, at most `max_lines` lines, the last one elided with '…' if cut."""
+    if not text or width <= 0 or max_lines <= 0:
+        return []
+    metrics = QFontMetrics(font)
+    layout = QTextLayout(text, font)
+    layout.beginLayout()
+    spans = []
+    while True:
+        line = layout.createLine()
+        if not line.isValid():
+            break
+        line.setLineWidth(width)
+        spans.append((line.textStart(), line.textLength()))
+    layout.endLayout()
+    lines = [text[start : start + length].rstrip() for start, length in spans[:max_lines]]
+    if len(spans) > max_lines:
+        rest = text[spans[max_lines - 1][0] :]
+        lines[-1] = metrics.elidedText(rest, Qt.TextElideMode.ElideRight, width)
+    return lines
+
+
 class CardWidget(QFrame):
     clicked = Signal(str)
 
@@ -35,81 +83,126 @@ class CardWidget(QFrame):
         self._urgency = urgency
         self._fill = fill
         self._press_pos: QPoint | None = None
+        self._done = task.stage == Stage.DONE
+        self._details = "" if self._done else plain_text(task.details)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
 
         ink = text_colour(fill)
         muted = QColor(ink)
-        muted.setAlphaF(0.78)
+        muted.setAlphaF(0.8)
 
-        self.title_label = QLabel(self._title_text())
-        self.title_label.setWordWrap(True)
-        self.title_label.setStyleSheet(f"color: {ink.name()}; font-weight: 600; background: transparent;")
-        self.meta_label = QLabel(self._meta_text())
-        self.meta_label.setStyleSheet(
-            f"color: {muted.name(QColor.NameFormat.HexArgb)}; font-size: 11px; background: transparent;"
+        self.title_label = QLabel()
+        title_font = self.title_label.font()
+        title_font.setBold(True)
+        title_font.setStrikeOut(self._done)
+        self.title_label.setFont(title_font)
+        self.title_label.setStyleSheet(f"color: {ink.name()}; background: transparent;")
+
+        self.usable_data_icon = QLabel("📎")
+        self.usable_data_icon.setToolTip("Has Usable data")
+        self.usable_data_icon.setStyleSheet("background: transparent; font-size: 11px;")
+        self.usable_data_icon.setHidden(not task.usable_data or self._done)
+
+        self.details_label = QLabel()
+        details_font = self.details_label.font()
+        details_font.setPointSizeF(details_font.pointSizeF() - 1)
+        self.details_label.setFont(details_font)
+        self.details_label.setStyleSheet(
+            f"color: {muted.name(QColor.NameFormat.HexArgb)}; background: transparent;"
         )
+
+        self.meta_label = QLabel(self._meta_text())
+        meta_font = self.meta_label.font()
+        meta_font.setPointSizeF(meta_font.pointSizeF() - 2)
+        self.meta_label.setFont(meta_font)
+        self.meta_label.setStyleSheet(f"color: {muted.name(QColor.NameFormat.HexArgb)}; background: transparent;")
         self.meta_label.setHidden(not self.meta_label.text())
 
+        # Text is wrapped and cut to the card's width, so the labels must not dictate a width.
+        for label in (self.title_label, self.details_label, self.meta_label):
+            label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+            label.setMinimumWidth(1)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(4)
+        top.addWidget(self.title_label, 1)
+        top.addWidget(self.usable_data_icon, 0, Qt.AlignmentFlag.AlignTop)
+
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(_STRIPE + 10, 9, 10, 9)
-        layout.setSpacing(3)
-        layout.addWidget(self.title_label)
+        layout.setContentsMargins(_STRIPE + 10, 7 if self._done else 9, 10, 7 if self._done else 9)
+        layout.setSpacing(2)
+        layout.addLayout(top)
+        layout.addWidget(self.details_label)
         layout.addWidget(self.meta_label)
 
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(14)
-        shadow.setOffset(0, 4)
-        shadow.setColor(QColor(0, 0, 0, 90))
+        shadow.setBlurRadius(12)
+        shadow.setOffset(0, 3)
+        shadow.setColor(QColor(0, 0, 0, 85))
         self.setGraphicsEffect(shadow)
+        self._fit_text()
+
+    def _meta_text(self) -> str:
+        if self._done:
+            return f"✓ {format_date(self.task.completed_at)}"
+        if self.task.kind != LaneKind.TIME_LIMITED:
+            return ""
+        dates = []
+        if self.task.due_date:
+            dates.append(f"▶ {format_date(self.task.due_date)}")
+        if self.task.deadline:
+            dates.append(f"⚑ {format_date(self.task.deadline)}")
+        text = " → ".join(dates)
+        if self._urgency == Urgency.START_PASSED:
+            text += "  · start passed"
+        return text
 
     def _title_text(self) -> str:
         if self.task.priority is not None:
             return f"{self.task.priority}. {self.task.title}"
         return self.task.title
 
-    def _meta_text(self) -> str:
-        parts = []
-        if self.task.stage == Stage.DONE:
-            parts.append(f"✓ {format_date(self.task.completed_at)}")
-        elif self.task.kind == LaneKind.TIME_LIMITED:
-            dates = []
-            if self.task.due_date:
-                dates.append(f"▶ {format_date(self.task.due_date)}")
-            if self.task.deadline:
-                dates.append(f"⚑ {format_date(self.task.deadline)}")
-            parts.append(" → ".join(dates))
-            if self._urgency == Urgency.START_PASSED:
-                parts.append("· start passed")
-        icons = ("📝" if self.task.details else "") + ("📎" if self.task.usable_data else "")
-        if icons:
-            parts.append(icons)
-        return "  ".join(parts)
+    def _fit_text(self) -> None:
+        """Title (up to 2 lines), then the Details preview, then dates: 4 lines at most."""
+        margins = self.layout().contentsMargins()
+        icon = 0 if self.usable_data_icon.isHidden() else self.usable_data_icon.sizeHint().width() + 4
+        width = max(self.width() - margins.left() - margins.right(), 40)
+
+        title_lines = wrap_lines(
+            self._title_text(), self.title_label.font(), width - icon, 1 if self._done else _MAX_TITLE_LINES
+        )
+        self.title_label.setText("\n".join(title_lines))
+
+        room = _MAX_LINES - len(title_lines) - (0 if self.meta_label.isHidden() or self._done else 1)
+        details_lines = wrap_lines(self._details, self.details_label.font(), width, room)
+        self.details_label.setText("\n".join(details_lines))
+        self.details_label.setHidden(not details_lines)
+        self.updateGeometry()  # the line count, and so the height, may have changed
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._fit_text()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        path = QPainterPath()
-        path.addRoundedRect(rect, _RADIUS, _RADIUS)
 
         # Lit from above: lighter at the top edge, darker at the bottom.
         gradient = QLinearGradient(rect.topLeft(), rect.bottomLeft())
-        gradient.setColorAt(0.0, self._fill.lighter(118))
+        gradient.setColorAt(0.0, self._fill.lighter(116))
         gradient.setColorAt(0.5, self._fill)
         gradient.setColorAt(1.0, self._fill.darker(112))
-        painter.fillPath(path, gradient)
+        painter.fillRect(rect, gradient)
         painter.setPen(QPen(self._fill.darker(130), 1))
-        painter.drawPath(path)
-        highlight = QColor(255, 255, 255, 70)
-        painter.setPen(QPen(highlight, 1))
-        painter.drawLine(int(rect.left() + _RADIUS), int(rect.top() + 1), int(rect.right() - _RADIUS), int(rect.top() + 1))
+        painter.drawRect(rect)
+        painter.setPen(QPen(QColor(255, 255, 255, 70), 1))
+        painter.drawLine(int(rect.left() + 1), int(rect.top() + 1), int(rect.right() - 1), int(rect.top() + 1))
 
         stripe = URGENCY_COLOURS.get(self._urgency)
         if stripe:
-            painter.save()
-            painter.setClipPath(path)
             painter.fillRect(QRectF(rect.left(), rect.top(), _STRIPE, rect.height()), stripe)
-            painter.restore()
         painter.end()
 
     def mousePressEvent(self, event):

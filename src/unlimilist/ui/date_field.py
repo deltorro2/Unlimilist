@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from PySide6.QtCore import QDate, Signal
+from PySide6.QtCore import QDate, QEvent, QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QCalendarWidget,
+    QFrame,
     QHBoxLayout,
     QLineEdit,
     QMenu,
@@ -14,6 +15,8 @@ from PySide6.QtWidgets import (
     QWidget,
     QWidgetAction,
 )
+
+from unlimilist.ui.icons import icon
 
 DATE_FORMAT = "%d/%m/%Y"
 
@@ -40,22 +43,52 @@ class DateField(QWidget):
         menu.aboutToShow.connect(self._sync_calendar)
         self._menu = menu
 
+        self.line_edit.setObjectName("dateText")
+        self.line_edit.setFrame(False)
+        self.line_edit.installEventFilter(self)
+
         calendar_button = QToolButton()
-        calendar_button.setText("📅")
+        calendar_button.setObjectName("dateCalendar")
+        calendar_button.setIcon(icon("calendar", "#6B6F7A"))
+        calendar_button.setIconSize(QSize(18, 18))
         calendar_button.setToolTip("Pick a date")
         calendar_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         calendar_button.setMenu(menu)
+        calendar_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        clear_button = QToolButton()
-        clear_button.setText("✕")
-        clear_button.setToolTip("Clear the date")
-        clear_button.clicked.connect(lambda: self.set_date(None))
+        self._clear_button = QToolButton()
+        self._clear_button.setObjectName("dateClear")
+        self._clear_button.setIcon(icon("x", "#3A3D45", 14))
+        self._clear_button.setIconSize(QSize(14, 14))
+        self._clear_button.setToolTip("Clear the date")
+        self._clear_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._clear_button.clicked.connect(lambda: self.set_date(None))
+        self._clear_button.hide()
+
+        self._box = QFrame()
+        self._box.setObjectName("dateBox")
+        box_layout = QHBoxLayout(self._box)
+        box_layout.setContentsMargins(10, 4, 6, 4)
+        box_layout.setSpacing(6)
+        box_layout.addWidget(calendar_button)
+        box_layout.addWidget(self.line_edit, 1)
+        box_layout.addWidget(self._clear_button)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.line_edit, 1)
-        layout.addWidget(calendar_button)
-        layout.addWidget(clear_button)
+        layout.addWidget(self._box)
+
+    def eventFilter(self, watched, event):
+        if watched is self.line_edit and event.type() in (QEvent.Type.FocusIn, QEvent.Type.FocusOut):
+            self._set_box_state("focused" if event.type() == QEvent.Type.FocusIn else "")
+        return super().eventFilter(watched, event)
+
+    def _set_box_state(self, state: str) -> None:
+        if not self.is_valid():
+            state = "invalid"
+        self._box.setProperty("state", state)
+        self._box.style().unpolish(self._box)
+        self._box.style().polish(self._box)
 
     def date(self) -> date | None:
         """The entered date, or None when empty. Raises ValueError for unreadable text."""
@@ -75,7 +108,8 @@ class DateField(QWidget):
         return True
 
     def _on_text_changed(self) -> None:
-        self.line_edit.setStyleSheet("" if self.is_valid() else "border: 1px solid #E53935;")
+        self._clear_button.setVisible(bool(self.line_edit.text()))
+        self._set_box_state("focused" if self.line_edit.hasFocus() else "")
         self.dateChanged.emit()
 
     def _sync_calendar(self) -> None:

@@ -13,18 +13,22 @@ The Kanban view of Tasks, arranged into Stages and Lanes.
 _Avoid_: Kanban, view
 
 **Stage**:
-One of Inbox, In Process or Done, i.e. where a Task is in its life.
-_Avoid_: Column, stack, status
+One of Inbox, In Process or Done, i.e. where a Task is in its life. The Board draws each Stage as a Column.
+_Avoid_: Stack, status
 
 **Lane**:
-A subdivision of a Stage that holds either Someday Tasks or Time-limited Tasks.
+A subdivision of a Stage that holds either Someday Tasks or Time-limited Tasks. On the Board, a Stage's two Lanes are shown interleaved in one Column rather than side by side.
 _Avoid_: Substack, swimlane, section
+
+**Column**:
+How the Board shows one Stage: its Lanes interleaved, with Someday Tasks aligned left and Time-limited Tasks aligned right. The order is the first Time-limited Task, then the top five Someday Tasks, then the remaining Time-limited Tasks, then the remaining Someday Tasks.
+_Avoid_: Merged lane, stack
 
 **Inbox / In Process / Done**:
 The three Stages. Inbox and In Process each have a Someday Lane and a Time-limited Lane. Done is a single list that holds both kinds of Task.
 
 **Priority**:
-A Someday Task's rank within its Lane: 1 is the top, and ranks run 1..N with no gaps or ties. A Someday Task always has a Priority. A new Task, or one that has just become Someday, starts at the bottom.
+A Someday Task's rank within its Lane: 1 is the top, and ranks run 1..N with no gaps or ties. A Someday Task always has a Priority. A new Task, or one that has just become Someday, starts at the bottom. Asking for a rank past the bottom (999 by convention) means the bottom.
 _Avoid_: Order, position, importance
 
 **Title**:

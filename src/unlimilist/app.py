@@ -25,7 +25,10 @@ QListWidget#sidebar::item:disabled { color: #A0A4AE; font-style: italic; }
 QFrame#stage { background: #E8EAF0; border-radius: 10px; }
 QLabel#stageHeader { font-size: 16px; font-weight: 700; color: #22252B; padding: 2px 4px; }
 QFrame#lane { background: #F6F7FA; border: 1px solid #DCDFE6; border-radius: 8px; }
-QFrame#lane[dropTarget="true"] { background: #EAF1FF; border: 2px dashed #2F6FED; }
+QFrame#lane[dropSide="all"] { background: #EAF1FF; border: 2px dashed #2F6FED; }
+QFrame#lane[dropSide="left"] { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E3EDFF, stop:0.499 #E3EDFF, stop:0.5 #F6F7FA, stop:1 #F6F7FA); border: 2px dashed #2F6FED; }
+QFrame#lane[dropSide="right"] { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F6F7FA, stop:0.499 #F6F7FA, stop:0.5 #E0F5F1, stop:1 #E0F5F1); border: 2px dashed #1E9E8A; }
+QWidget#cardRow { background: transparent; }
 QLabel#laneHeader { font-size: 12px; font-weight: 600; color: #5A5F6B; padding: 2px 6px; text-transform: uppercase; }
 QLabel#laneHint { font-size: 11px; color: #2F6FED; padding: 0 6px; }
 QWidget#laneBody { background: transparent; }

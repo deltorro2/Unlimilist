@@ -1,16 +1,19 @@
 """A small WYSIWYG editor whose content is read and written as Markdown."""
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import QSize, Qt, QUrl
 from PySide6.QtGui import (
     QDesktopServices,
     QFont,
     QFontDatabase,
     QKeySequence,
+    QShortcut,
     QTextCharFormat,
     QTextDocument,
     QTextListFormat,
 )
-from PySide6.QtWidgets import QHBoxLayout, QInputDialog, QTextEdit, QToolButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QInputDialog, QTextEdit, QToolButton, QVBoxLayout, QWidget
+
+from unlimilist.ui.icons import icon
 
 
 class _LinkAwareTextEdit(QTextEdit):
@@ -37,33 +40,58 @@ class RichTextEditor(QWidget):
         self.text_edit.setMouseTracking(True)
         self.text_edit.setToolTip("⌘-click a link to open it")
 
-        toolbar = QHBoxLayout()
-        toolbar.setContentsMargins(0, 0, 0, 0)
-        toolbar.setSpacing(2)
-        for label, tip, shortcut, handler in [
-            ("B", "Bold", QKeySequence.StandardKey.Bold, self._toggle_bold),
-            ("I", "Italic", QKeySequence.StandardKey.Italic, self._toggle_italic),
-            ("S", "Strikethrough", None, self._toggle_strike),
-            ("•", "Bulleted list", None, lambda: self._make_list(QTextListFormat.Style.ListDisc)),
-            ("1.", "Numbered list", None, lambda: self._make_list(QTextListFormat.Style.ListDecimal)),
-            ("</>", "Code", None, self._toggle_code),
-            ("🔗", "Link", None, self._insert_link),
+        self.text_edit.setObjectName("editorText")
+        self.text_edit.setFrameShape(QFrame.Shape.NoFrame)
+
+        toolbar_widget = QWidget()
+        toolbar_widget.setObjectName("editorToolbar")
+        toolbar = QHBoxLayout(toolbar_widget)
+        toolbar.setContentsMargins(10, 6, 10, 6)
+        toolbar.setSpacing(4)
+        for name, tip, handler in [
+            ("bold", "Bold (⌘B)", self._toggle_bold),
+            ("italic", "Italic (⌘I)", self._toggle_italic),
+            ("strikethrough", "Strikethrough", self._toggle_strike),
+            (None, None, None),
+            ("list", "Bulleted list", lambda: self._make_list(QTextListFormat.Style.ListDisc)),
+            ("list-ordered", "Numbered list", lambda: self._make_list(QTextListFormat.Style.ListDecimal)),
+            ("code", "Code", self._toggle_code),
+            ("link", "Link", self._insert_link),
         ]:
+            if name is None:
+                separator = QFrame()
+                separator.setObjectName("toolbarSeparator")
+                separator.setFixedSize(1, 18)
+                toolbar.addWidget(separator)
+                continue
             button = QToolButton()
-            button.setText(label)
+            button.setObjectName("editorButton")
+            button.setIcon(icon(name))
+            button.setIconSize(QSize(18, 18))
             button.setToolTip(tip)
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             button.clicked.connect(handler)
-            if shortcut is not None:
-                button.setShortcut(QKeySequence(shortcut))
             toolbar.addWidget(button)
         toolbar.addStretch(1)
+        for sequence, handler in [
+            (QKeySequence.StandardKey.Bold, self._toggle_bold),
+            (QKeySequence.StandardKey.Italic, self._toggle_italic),
+        ]:
+            shortcut = QShortcut(QKeySequence(sequence), self)
+            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            shortcut.activated.connect(handler)
+
+        box = QFrame()
+        box.setObjectName("editorBox")
+        box_layout = QVBoxLayout(box)
+        box_layout.setContentsMargins(1, 1, 1, 1)
+        box_layout.setSpacing(0)
+        box_layout.addWidget(toolbar_widget)
+        box_layout.addWidget(self.text_edit, 1)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(2)
-        layout.addLayout(toolbar)
-        layout.addWidget(self.text_edit)
+        layout.addWidget(box)
 
     def markdown(self) -> str:
         if not self.text_edit.toPlainText().strip():

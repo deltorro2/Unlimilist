@@ -1,5 +1,9 @@
 # UnlimiList - personal multi-lane task manager for macOS (Windows support on demand)
 
+
+## Releases
+See [all available releases](https://github.com/deltorro2/Unlimilist/releases).
+
 I have to participate in a large number of different activities, each of which generates multiple tasks. Some of these tasks have strict deadlines, while others do not.
 At any given time, I work on several tasks in parallel, each at a different stage of completion. Every task has its own priority, which is constantly changing.
 In addition, as I work on these tasks, I accumulate various pieces of context-specific information associated with each one, such as phone numbers, code snippets, links, and so on. I would like to store this information alongside the relevant task.

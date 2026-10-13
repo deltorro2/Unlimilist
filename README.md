@@ -1,10 +1,13 @@
 # UnlimiList - personal multi-lane task manager for macOS (Windows support on demand)
 
 
+[![Latest Release](https://img.shields.io/github/v/release/deltorro2/Unlimilist)](https://github.com/deltorro2/Unlimilist/releases/latest)
+
 ## Releases
 See [all available releases](https://github.com/deltorro2/Unlimilist/releases).
 
-[![Latest Release](https://img.shields.io/github/v/release/deltorro2/Unlimilist)](https://github.com/deltorro2/Unlimilist/releases/latest)
+
+
 
 ## Description
 I have to participate in a large number of different activities, each of which generates multiple tasks. Some of these tasks have strict deadlines, while others do not.

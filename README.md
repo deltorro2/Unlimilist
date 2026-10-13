@@ -1,4 +1,4 @@
-# Unlimilist - personal multi-lane task manager for macOS (Windows support on demand)
+# UnlimiList - personal multi-lane task manager for macOS (Windows support on demand)
 
 I have to participate in a large number of different activities, each of which generates multiple tasks. Some of these tasks have strict deadlines, while others do not.
 At any given time, I work on several tasks in parallel, each at a different stage of completion. Every task has its own priority, which is constantly changing.

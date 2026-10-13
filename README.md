@@ -16,6 +16,13 @@ One important requirement is that the system must work regardless of internet co
 None of the tools I’ve evaluated (Jira, Todoist, TickTick, Google Tasks, etc.) fully meet my requirements. At the same time, they come with an incredible number of features that are completely unnecessary for me. 
 What I need is a very simple, Kanban-based task management system (Trello too simple) which presents a huge number of ToDo's and Tasks in the usable form and allows simple triage them by importance level. And that’s when I decided that if I wanted it done right, I’d have to build it myself…
 
+## Screenshots
+
+### Kanban Board
+![Kanban Board](docs/board.png)
+
+### Task Details
+![Task Details](docs/task-dialog.png)
 
 
 A personal desktop Kanban for Tasks. The vocabulary is in [CONTEXT.md](CONTEXT.md), and design decisions are in [docs/adr](docs/adr).

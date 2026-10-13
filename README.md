@@ -3,8 +3,7 @@
 
 [![Latest Release](https://img.shields.io/github/v/release/deltorro2/Unlimilist?include_prereleases)](https://github.com/deltorro2/Unlimilist/releases/latest)
 
-## Releases
-See [all available releases](https://github.com/deltorro2/Unlimilist/releases).
+
 
 
 

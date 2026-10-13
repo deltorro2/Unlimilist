@@ -1,7 +1,7 @@
 # UnlimiList - personal multi-lane task manager for macOS (Windows support on demand)
 
 
-[![Latest Release](https://img.shields.io/github/v/release/deltorro2/Unlimilist)](https://github.com/deltorro2/Unlimilist/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/deltorro2/Unlimilist?include_prereleases)](https://github.com/deltorro2/Unlimilist/releases/latest)
 
 ## Releases
 See [all available releases](https://github.com/deltorro2/Unlimilist/releases).

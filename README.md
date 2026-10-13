@@ -1,4 +1,13 @@
-# Unlimilist
+# Unlimilist - personal multi-lane task manager for macOS (Windows support on demand)
+
+I have to participate in a large number of different activities, each of which generates multiple tasks. Some of these tasks have strict deadlines, while others do not.
+At any given time, I work on several tasks in parallel, each at a different stage of completion. Every task has its own priority, which is constantly changing.
+In addition, as I work on these tasks, I accumulate various pieces of context-specific information associated with each one, such as phone numbers, code snippets, links, and so on. I would like to store this information alongside the relevant task.
+One important requirement is that the system must work regardless of internet connectivity (local-first).
+None of the tools I’ve evaluated (Jira, Todoist, TickTick, Google Tasks, etc.) fully meet my requirements. At the same time, they come with an incredible number of features that are completely unnecessary for me. 
+What I need is a very simple, Kanban-based task management system (Trello too simple) which presents a huge number of ToDo's and Tasks in the usable form and allows simple triage them by importance level. And that’s when I decided that if I wanted it done right, I’d have to build it myself…
+
+
 
 A personal desktop Kanban for Tasks. The vocabulary is in [CONTEXT.md](CONTEXT.md), and design decisions are in [docs/adr](docs/adr).
 

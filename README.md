@@ -21,9 +21,18 @@ What I need is a very simple, Kanban-based task management system (Trello too si
 ### Kanban Board
 ![Kanban Board](docs/board.png)
 
+Each Stage shows its Someday Tasks on the left, ranked by Priority, and its Time-limited Tasks on the right, ordered by date. A red border marks a late Task (Overdue, or Start passed), and an amber stripe marks one that is Due soon. The badge at the start of a card shows its Activity, and the circle shows its progress: empty, two thirds when it has Subtasks, and full once Done.
+
 ### Task Details
 ![Task Details](docs/task-dialog.png)
 
+Click a card to edit it. Pick an Activity, add Subtasks as checkboxes in the Details, and keep links and snippets in Usable data. A Task can't enter Done while it has unfinished Subtasks.
+
+The screenshots are drawn from a made-up Board, never from your own Tasks. To redraw them after a UI change:
+
+```sh
+uv run python scripts/readme_screenshots.py   # writes docs/board.png and docs/task-dialog.png
+```
 
 A personal desktop Kanban for Tasks. The vocabulary is in [CONTEXT.md](CONTEXT.md), and design decisions are in [docs/adr](docs/adr).
 

@@ -6,7 +6,7 @@ from PySide6.QtGui import QDragEnterEvent, QDropEvent, QFocusEvent, QTextCursor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from unlimilist.board import Board
-from unlimilist.domain import LaneKind, Stage
+from unlimilist.domain import Activity, LaneKind, Stage
 from unlimilist.ui.card import encode_drag
 from unlimilist.ui.main_window import MainWindow
 from unlimilist.ui.task_dialog import TaskDialog
@@ -115,6 +115,28 @@ def test_task_dialog_is_900_pixels_wide(qtbot, board):
     qtbot.addWidget(dialog)
 
     assert dialog.width() == 900
+
+
+def test_a_new_task_starts_as_a_general_task_and_another_activity_can_be_picked(qtbot, board):
+    dialog = TaskDialog(board)
+    qtbot.addWidget(dialog)
+    assert dialog.activity_buttons[Activity.GENERAL_TASK].isChecked()
+
+    dialog.title_edit.setText("Call the bank")
+    dialog.activity_buttons[Activity.PHONE_CALL].click()
+    dialog.save_button.click()
+
+    assert board.lane(Stage.INBOX, LaneKind.SOMEDAY)[0].activity == Activity.PHONE_CALL
+
+
+def test_editing_shows_the_current_activity(qtbot, board):
+    task = board.add_task("Standup", activity=Activity.MEETING)
+
+    dialog = TaskDialog(board, task)
+    qtbot.addWidget(dialog)
+
+    checked = [a for a, button in dialog.activity_buttons.items() if button.isChecked()]
+    assert checked == [Activity.MEETING]
 
 
 def test_new_task_dialog_has_no_delete_button(qtbot, board):
@@ -348,8 +370,8 @@ def test_window_has_the_app_icon(window):
 
 def test_toolbar_shows_the_app_name_with_its_version(window):
     assert window.app_title.text() == "UnlimiList"
-    assert window.version_badge.text() == "1.4"
-    assert window.windowTitle() == "UnlimiList 1.4"
+    assert window.version_badge.text() == "1.5"
+    assert window.windowTitle() == "UnlimiList 1.5"
 
 
 def test_column_shows_the_interleaved_order(window, board):
@@ -433,6 +455,31 @@ def test_every_card_has_a_status_circle_before_its_title(window, board):
     assert fills == {"Plain": "empty", "Checklist": "two_thirds"}
     assert done.status_icon.property("fill") == "full"
     assert done.status_icon.x() < done.title_label.x()
+
+
+def test_card_shows_its_activity_badge_before_the_status_circle(window, board):
+    board.add_task("Call the bank", activity=Activity.PHONE_CALL)
+    window.board_view.refresh()
+    QApplication.processEvents()
+
+    card = column_cards(window, Stage.INBOX)[0]
+    badge_x = card.activity_badge.mapTo(card, QPoint(0, 0)).x()
+    circle_x = card.status_icon.mapTo(card, QPoint(0, 0)).x()
+
+    assert card.activity_badge.isVisible()
+    assert card.activity_badge.property("activity") == "phone-call"
+    assert card.activity_badge.width() == 14
+    assert badge_x < circle_x
+
+
+def test_done_cards_have_no_activity_badge(window, board):
+    task = board.add_task("Call the bank", activity=Activity.PHONE_CALL)
+    board.move_task(task.id, Stage.DONE)
+    window.board_view.refresh()
+
+    card = column_cards(window, Stage.DONE)[0]
+
+    assert card.activity_badge.isHidden()
 
 
 def test_card_preview_leaves_out_subtasks(window, board):

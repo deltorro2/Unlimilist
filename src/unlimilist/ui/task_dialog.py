@@ -3,6 +3,7 @@
 from PySide6.QtCore import QEvent, QSize, Qt
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
+    QButtonGroup,
     QDialog,
     QFrame,
     QGridLayout,
@@ -18,9 +19,9 @@ from PySide6.QtWidgets import (
 )
 
 from unlimilist.board import Board
-from unlimilist.domain import InvalidTask, Stage, Task
+from unlimilist.domain import Activity, InvalidTask, Stage, Task
 from unlimilist.ui.date_field import DateField
-from unlimilist.ui.icons import icon, pixmap
+from unlimilist.ui.icons import ACTIVITY_LABELS, activity_pixmap, icon, pixmap
 from unlimilist.ui.rich_text import RichTextEditor
 
 BOTTOM_PRIORITY = 999  # a rank past the bottom: the Board puts the Task last
@@ -42,6 +43,11 @@ QLineEdit#titleEdit {
     padding: 9px 12px; font-size: 17px; font-weight: 500; color: #1B1B1F;
 }
 QLineEdit#titleEdit:focus { border: 2px solid #2F7BEA; padding: 8px 11px; }
+
+QToolButton#activityButton { background: #FFFFFF; border: 1px solid #D5D7DD; border-radius: 8px;
+    padding: 6px 12px 6px 8px; font-size: 14px; color: #1B1B1F; }
+QToolButton#activityButton:hover { background: #F7F7F9; }
+QToolButton#activityButton:checked { background: #EEF4FF; border: 2px solid #2F7BEA; padding: 5px 11px 5px 7px; }
 
 QFrame#editorBox { background: #FFFFFF; border: 1px solid #D5D7DD; border-radius: 8px; }
 QWidget#editorToolbar { background: #F7F7F9; border: none; border-bottom: 1px solid #E4E5EA;
@@ -141,6 +147,9 @@ class TaskDialog(QDialog):
         content.addWidget(_label("Title", required=True))
         content.addWidget(self.title_edit)
         content.addSpacing(10)
+        content.addWidget(_label("Activity"))
+        content.addLayout(self._build_activity_picker())
+        content.addSpacing(10)
         content.addWidget(_label("Details"))
         content.addWidget(self.details_editor, 1)
         content.addSpacing(10)
@@ -174,6 +183,7 @@ class TaskDialog(QDialog):
             self.usable_data_editor.set_markdown(task.usable_data)
             self.due_date_field.set_date(task.due_date)
             self.deadline_field.set_date(task.deadline)
+        self.activity_buttons[task.activity if task else Activity.GENERAL_TASK].setChecked(True)
         self.priority_spin.setValue(task.priority if task and task.priority is not None else BOTTOM_PRIORITY)
         # Until an editor is focused, the split follows the content; after that, the last focused editor leads.
         self._focused_editor: RichTextEditor | None = None
@@ -185,6 +195,31 @@ class TaskDialog(QDialog):
         self.deadline_field.dateChanged.connect(self._update_priority_lock)
         self._update_priority_lock()
         self.title_edit.setFocus()
+
+    def _build_activity_picker(self) -> QHBoxLayout:
+        """One labelled badge per Activity; exactly one is chosen."""
+        self.activity_buttons: dict[Activity, QToolButton] = {}
+        self._activity_group = QButtonGroup(self)
+        self._activity_group.setExclusive(True)
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        for activity, label in ACTIVITY_LABELS.items():
+            button = QToolButton()
+            button.setObjectName("activityButton")
+            button.setText(label)
+            button.setIcon(activity_pixmap(activity, 20))
+            button.setIconSize(QSize(20, 20))
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._activity_group.addButton(button)
+            self.activity_buttons[activity] = button
+            row.addWidget(button)
+        row.addStretch(1)
+        return row
+
+    def _chosen_activity(self) -> Activity:
+        return next(a for a, button in self.activity_buttons.items() if button.isChecked())
 
     def _build_priority(self) -> QHBoxLayout:
         self.priority_spin = QSpinBox()
@@ -317,6 +352,7 @@ class TaskDialog(QDialog):
                 usable_data=self.usable_data_editor.markdown(),
                 due_date=self._read_date(self.due_date_field, "Due date"),
                 deadline=self._read_date(self.deadline_field, "Deadline"),
+                activity=self._chosen_activity(),
                 priority=None if self._priority_lock_reason() else self.priority_spin.value(),
             )
             if self._require_date and not (fields["due_date"] or fields["deadline"]):

@@ -17,6 +17,16 @@ class LaneKind(Enum):
     TIME_LIMITED = "time_limited"
 
 
+class Activity(Enum):
+    """The kind of work a Task represents. The value names its icon and is what the Task file stores."""
+
+    GENERAL_TASK = "general-task"
+    PHONE_CALL = "phone-call"
+    MEETING = "meeting"
+    DEVELOP_CODE = "develop-code"
+    MILESTONE = "milestone"
+
+
 class Urgency(Enum):
     NONE = "none"
     START_PASSED = "start_passed"
@@ -57,6 +67,7 @@ class Task:
     deadline: date | None = None
     priority: int | None = None
     completed_at: datetime | None = None
+    activity: Activity = Activity.GENERAL_TASK
 
     @property
     def kind(self) -> LaneKind:

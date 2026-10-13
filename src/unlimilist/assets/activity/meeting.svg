@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+  <defs><linearGradient id="g-meeting" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#60A5FA"/><stop offset="1" stop-color="#1D4ED8"/></linearGradient></defs>
+  <rect x="0.5" y="0.5" width="23" height="23" rx="6.5" fill="url(#g-meeting)"/>
+  <circle cx="15.3" cy="9" r="1.9" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+  <path fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.85" d="M14.2 13.3c.4-.1.7-.1 1.1-.1 1.9 0 3.3 1.5 3.3 3.5"/>
+  <circle cx="9.6" cy="9.6" r="2.3" fill="#FFFFFF"/>
+  <path fill="#FFFFFF" d="M5.4 17.3c0-2.4 1.9-4.2 4.2-4.2s4.2 1.8 4.2 4.2c0 .4-.3.7-.7.7H6.1c-.4 0-.7-.3-.7-.7z"/>
+</svg>

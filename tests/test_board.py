@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from unlimilist.board import Board, InMemoryStore
-from unlimilist.domain import DeleteRefused, InvalidTask, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
+from unlimilist.domain import Activity, DeleteRefused, InvalidTask, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
 
 
 class FakeClock:
@@ -358,3 +358,21 @@ def test_a_task_in_process_cannot_be_deleted(board):
         board.delete_task(task.id)
 
     assert board.task(task.id).stage == Stage.IN_PROCESS
+
+
+def test_a_new_task_is_a_general_task_unless_another_activity_is_given(board):
+    plain = board.add_task("Plan the garden")
+    call = board.add_task("Call the bank", activity=Activity.PHONE_CALL)
+
+    assert board.task(plain.id).activity == Activity.GENERAL_TASK
+    assert board.task(call.id).activity == Activity.PHONE_CALL
+
+
+def test_changing_the_activity_keeps_the_task_in_place(board):
+    board.add_task("A")
+    b = board.add_task("B")
+
+    board.edit_task(b.id, activity=Activity.MEETING)
+
+    assert board.task(b.id).activity == Activity.MEETING
+    assert titles(board.lane(Stage.INBOX, LaneKind.SOMEDAY)) == ["A", "B"]

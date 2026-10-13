@@ -2,9 +2,21 @@
 
 from pathlib import Path
 
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QIcon, QImageReader, QPixmap
 
-_APP_ICON = Path(__file__).resolve().parent.parent / "assets" / "app_icon.png"
+from unlimilist.domain import Activity
+
+_ASSETS = Path(__file__).resolve().parent.parent / "assets"
+_APP_ICON = _ASSETS / "app_icon.png"
+
+ACTIVITY_LABELS = {
+    Activity.GENERAL_TASK: "General Task",
+    Activity.PHONE_CALL: "Phone call",
+    Activity.MEETING: "Meeting",
+    Activity.DEVELOP_CODE: "Develop code",
+    Activity.MILESTONE: "Milestone",
+}
 
 _PATHS = {
     "bold": '<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>',
@@ -55,3 +67,12 @@ def icon(name: str, colour: str = "#3A3D45", size: int = 18, disabled_colour: st
 def app_icon() -> QIcon:
     """The Unlimilist app icon, for the window and the Dock."""
     return QIcon(str(_APP_ICON))
+
+
+def activity_pixmap(activity: Activity, size: int) -> QPixmap:
+    """The Activity's badge, rendered from its SVG at `size` points (crisp on Retina)."""
+    reader = QImageReader(str(_ASSETS / "activity" / f"{activity.value}.svg"))
+    reader.setScaledSize(QSize(size * _SCALE, size * _SCALE))
+    image = QPixmap.fromImage(reader.read())
+    image.setDevicePixelRatio(_SCALE)
+    return image

@@ -6,7 +6,7 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import Protocol
 
-from unlimilist.domain import DeleteRefused, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
+from unlimilist.domain import Activity, DeleteRefused, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
 
 _KEEP = object()
 
@@ -52,6 +52,7 @@ class Board:
         due_date: date | None = None,
         deadline: date | None = None,
         priority: int | None = None,
+        activity: Activity = Activity.GENERAL_TASK,
     ) -> Task:
         created_at = self._clock()
         task = Task(
@@ -63,6 +64,7 @@ class Board:
             usable_data=usable_data,
             due_date=due_date,
             deadline=deadline,
+            activity=activity,
         )
         task.validate()
         self._put(task)
@@ -79,6 +81,7 @@ class Board:
         usable_data=_KEEP,
         due_date=_KEEP,
         deadline=_KEEP,
+        activity=_KEEP,
         priority: int | None = None,
     ) -> Task:
         """Change a Task's fields; arguments left out keep their current value.
@@ -88,7 +91,12 @@ class Board:
         """
         old = self._tasks[task_id]
         changes = dict(
-            title=title, details=details, usable_data=usable_data, due_date=due_date, deadline=deadline
+            title=title,
+            details=details,
+            usable_data=usable_data,
+            due_date=due_date,
+            deadline=deadline,
+            activity=activity,
         )
         new = replace(old, **{k: v for k, v in changes.items() if v is not _KEEP})
         new.validate()

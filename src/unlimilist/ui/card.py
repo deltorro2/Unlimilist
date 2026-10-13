@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 
 from unlimilist.domain import LaneKind, Stage, Task, Urgency
 from unlimilist.ui.date_field import format_date
+from unlimilist.ui.icons import ACTIVITY_LABELS, activity_pixmap
 from unlimilist.ui.styling import LATE, LATE_BORDER, URGENCY_COLOURS, text_colour
 
 TASK_MIME_TYPE = "application/x-unlimilist-task"
@@ -35,6 +36,8 @@ _STRIPE = 5
 _MAX_LINES = 4
 _MAX_TITLE_LINES = 2
 _STATUS_SIZE = 12
+_BADGE_SIZE = 14
+_BADGE_GAP = 6
 _LATE_BORDER_WIDTH = 2
 
 
@@ -158,7 +161,18 @@ class CardWidget(QFrame):
         title_font.setStrikeOut(self._done)
         self.title_label.setFont(title_font)
         # As tall as one title line, so the circle sits centred on the first line.
-        self.status_icon.setFixedSize(_STATUS_SIZE, QFontMetrics(title_font).height())
+        title_line = QFontMetrics(title_font).height()
+        self.status_icon.setFixedSize(_STATUS_SIZE, title_line)
+
+        # The Activity badge sits in the left margin, level with the first title line. Done cards leave it out.
+        self.activity_badge = QLabel()
+        self.activity_badge.setProperty("activity", task.activity.value)
+        self.activity_badge.setPixmap(activity_pixmap(task.activity, _BADGE_SIZE))
+        self.activity_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.activity_badge.setFixedSize(_BADGE_SIZE, title_line)
+        self.activity_badge.setStyleSheet("background: transparent;")
+        self.activity_badge.setToolTip(ACTIVITY_LABELS[task.activity])
+        self.activity_badge.setHidden(self._done)
         self.title_label.setStyleSheet(f"color: {ink.name()}; background: transparent;")
 
         self.usable_data_icon = QLabel("📎")
@@ -195,12 +209,19 @@ class CardWidget(QFrame):
         top.addWidget(self.title_label, 1)
         top.addWidget(self.usable_data_icon, 0, Qt.AlignmentFlag.AlignTop)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(_STRIPE + 10, 7 if self._done else 9, 10, 7 if self._done else 9)
-        layout.setSpacing(2)
-        layout.addLayout(top)
-        layout.addWidget(self.details_label)
-        layout.addWidget(self.meta_label)
+        content = QVBoxLayout()
+        content.setContentsMargins(0, 0, 0, 0)
+        content.setSpacing(2)
+        content.addLayout(top)
+        content.addWidget(self.details_label)
+        content.addWidget(self.meta_label)
+
+        layout = QHBoxLayout(self)
+        vertical = 7 if self._done else 9
+        layout.setContentsMargins(_STRIPE + (10 if self._done else 3), vertical, 10, vertical)
+        layout.setSpacing(_BADGE_GAP)
+        layout.addWidget(self.activity_badge, 0, Qt.AlignmentFlag.AlignTop)
+        layout.addLayout(content, 1)
 
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(12)
@@ -234,7 +255,8 @@ class CardWidget(QFrame):
         margins = self.layout().contentsMargins()
         icon = _STATUS_SIZE + 6
         icon += 0 if self.usable_data_icon.isHidden() else self.usable_data_icon.sizeHint().width() + 4
-        width = max(self.width() - margins.left() - margins.right(), 40)
+        badge = 0 if self._done else _BADGE_SIZE + _BADGE_GAP
+        width = max(self.width() - margins.left() - margins.right() - badge, 40)
 
         title_lines = wrap_lines(
             self._title_text(), self.title_label.font(), width - icon, 1 if self._done else _MAX_TITLE_LINES

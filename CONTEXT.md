@@ -38,6 +38,10 @@ The short required name of a Task.
 Optional formatted text that describes what the Task is.
 _Avoid_: Description, notes
 
+**Activity**:
+The kind of work a Task represents: General Task, Phone call, Meeting, Develop code or Milestone. Every Task has exactly one, and a new Task starts as General Task. It describes the work only and does not affect where the Task sits on the Board.
+_Avoid_: Type, category, kind
+
 **Subtask**:
 A checkbox item in a Task's Details, either finished (checked) or unfinished. Subtasks normally form one list at the start of the Details, before any other text, and a new Subtask goes at the end of that list. A checkbox found further down still counts as a Subtask. A Task with unfinished Subtasks cannot enter Done, but once in Done its Subtasks can be edited freely.
 _Avoid_: Checklist item, todo, child task

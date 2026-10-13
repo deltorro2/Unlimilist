@@ -5,6 +5,7 @@ File layout:
     ---
     id: 2026-10-12-a1b2c3
     stage: inbox
+    activity: general-task
     priority: 1
     due_date: 2026-10-14
     deadline: null
@@ -28,7 +29,7 @@ from pathlib import Path
 
 import yaml
 
-from unlimilist.domain import Stage, Task
+from unlimilist.domain import Activity, Stage, Task
 
 _DETAILS = "## Details"
 _USABLE_DATA = "## Usable data"
@@ -45,7 +46,7 @@ class MarkdownTaskStore:
         tasks = []
         for path in sorted(self.folder.glob("*.md")):
             try:
-                tasks.append(_parse(path.read_text(encoding="utf-8"), path.stem))
+                tasks.append(_parse(path.read_text(encoding="utf-8"), path.stem, path.name, self.warnings))
             except Exception as error:  # a hand-edited file may be broken in any way
                 self.warnings.append(f"Skipped {path.name}: {error}")
         return tasks
@@ -67,6 +68,7 @@ def _render(task: Task) -> str:
     meta = {
         "id": task.id,
         "stage": task.stage.value,
+        "activity": task.activity.value,
         "priority": task.priority,
         "due_date": task.due_date,
         "deadline": task.deadline,
@@ -82,7 +84,7 @@ def _render(task: Task) -> str:
     )
 
 
-def _parse(text: str, fallback_id: str) -> Task:
+def _parse(text: str, fallback_id: str, file_name: str, warnings: list[str]) -> Task:
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         raise ValueError("missing front matter")
@@ -114,11 +116,23 @@ def _parse(text: str, fallback_id: str) -> Task:
         deadline=_as_date(meta.get("deadline")),
         priority=meta.get("priority"),
         completed_at=_as_datetime(meta.get("completed_at")),
+        activity=_as_activity(meta.get("activity"), file_name, warnings),
     )
     if task.stage == Stage.DONE and task.completed_at is None:
         task = Task(**{**task.__dict__, "completed_at": task.created_at})
     task.validate()
     return task
+
+
+def _as_activity(value, file_name: str, warnings: list[str]) -> Activity:
+    """Files written before Activities existed have none: they are General Tasks."""
+    if value is None or value == "":
+        return Activity.GENERAL_TASK
+    try:
+        return Activity(str(value))
+    except ValueError:
+        warnings.append(f"{file_name}: unknown activity '{value}', shown as a General Task")
+        return Activity.GENERAL_TASK
 
 
 def _index_of(lines: list[str], heading: str) -> int | None:

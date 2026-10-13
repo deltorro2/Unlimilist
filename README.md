@@ -23,7 +23,17 @@ uv run python -m unlimilist    # run from source
 ./scripts/build_app.sh         # build the app with PyInstaller
 ```
 
-`build_app.sh` writes `dist/Unlimilist.app` on macOS, using the icon `assets/Unlimilist.icns` and stamping the bundle with the app version. It then ad-hoc signs the bundle, so it runs on the Mac that built it. On another Mac, Gatekeeper may ask you to confirm the first launch (right-click → Open). To install it, drag `dist/Unlimilist.app` into `/Applications`.
+`build_app.sh` writes `dist/Unlimilist.app` on macOS, using the icon `assets/Unlimilist.icns` and stamping the bundle with the app version. It then ad-hoc signs the bundle, so it runs on the Mac that built it.
+
+### macOS installer (DMG)
+
+```sh
+./scripts/build_dmg.sh         # builds the app, then dist/Unlimilist-<version>.dmg
+```
+
+The DMG opens a window with Unlimilist next to an Applications shortcut. To install, drag the app onto Applications. To uninstall, drag it from Applications to the Trash; your Tasks stay in the data folder. The window layout is in `scripts/dmg_settings.py` and is written by [dmgbuild](https://dmgbuild.readthedocs.io), so building needs no Finder permissions.
+
+The app is built for Apple Silicon (arm64) only. It isn't signed with an Apple Developer ID or notarized, so on the first launch macOS says it can't verify the developer. Right-click the app in Applications and choose **Open**, then **Open** again; after that it opens normally.
 
 `build/`, `dist/` and the generated `*.spec` file are build output and are not committed.
 

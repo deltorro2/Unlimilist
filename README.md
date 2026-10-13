@@ -28,12 +28,8 @@ Each Stage shows its Someday Tasks on the left, ranked by Priority, and its Time
 
 Click a card to edit it. Pick an Activity, add Subtasks as checkboxes in the Details, and keep links and snippets in Usable data. A Task can't enter Done while it has unfinished Subtasks.
 
-The screenshots are drawn from a made-up Board, never from your own Tasks. To redraw them after a UI change:
 
-```sh
-uv run python scripts/readme_screenshots.py   # writes docs/board.png and docs/task-dialog.png
-```
-
+## Dev docs
 A personal desktop Kanban for Tasks. The vocabulary is in [CONTEXT.md](CONTEXT.md), and design decisions are in [docs/adr](docs/adr).
 
 ## Building

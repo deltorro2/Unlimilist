@@ -17,9 +17,6 @@ QMainWindow, QWidget#central { background: #F4F5F8; }
 QToolBar { background: #FFFFFF; border: none; border-bottom: 1px solid #E2E4EA; padding: 4px 8px; spacing: 8px; }
 QToolBar QToolButton { background: #2F6FED; color: white; border-radius: 6px; padding: 5px 12px; font-weight: 600; }
 QToolBar QToolButton:hover { background: #255CD0; }
-QLabel#appTitle { font-size: 20px; font-weight: 700; color: #1B1B1F; }
-QLabel#versionBadge { background: transparent; border: 1.5px solid #E53935; border-radius: 13px;
-    color: #E53935; font-size: 10px; font-weight: 700; }
 
 QFrame#sidebarPane { background: #ECEEF3; border: none; border-right: 1px solid #DDE0E7; }
 QListWidget#sidebar { background: #ECEEF3; border: none; padding: 10px 6px 4px 6px; font-size: 14px; color: #1B1B1F; }

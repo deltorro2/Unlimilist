@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from unlimilist.board import Board, InMemoryStore
-from unlimilist.domain import Activity, DeleteRefused, InvalidTask, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
+from unlimilist.domain import Activity, DeleteRefused, DuplicateRefused, InvalidTask, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
 
 
 class FakeClock:
@@ -507,3 +507,80 @@ def test_time_limited_tasks_pushed_past_the_last_someday_task_come_at_the_end_in
     board.add_task("T2", deadline=date(2027, 6, 1))
 
     assert titles(board.column(Stage.INBOX)) == ["T1", "S1", "S2", "S3", "S4", "S5", "S6", "T2", "T3"]
+
+
+def test_deleting_a_task_keeps_its_file_under_a_deleted_name_and_never_loads_it_again(tmp_path):
+    from unlimilist.store import MarkdownTaskStore
+
+    board = Board(MarkdownTaskStore(tmp_path), clock=FakeClock())
+    keep = board.add_task("Keep")
+    gone = board.add_task("Gone")
+
+    board.delete_task(gone.id)
+
+    assert sorted(p.name for p in tmp_path.iterdir()) == sorted([f"{keep.id}.md", f"{gone.id}.md-deleted"])
+    assert titles(Board(MarkdownTaskStore(tmp_path), clock=FakeClock()).lane(Stage.INBOX, LaneKind.SOMEDAY)) == ["Keep"]
+
+
+def test_a_deleted_name_already_taken_gets_a_number(tmp_path):
+    from unlimilist.store import MarkdownTaskStore
+
+    board = Board(MarkdownTaskStore(tmp_path), clock=FakeClock())
+    task = board.add_task("Gone")
+    (tmp_path / f"{task.id}.md-deleted").write_text("an older deleted Task", encoding="utf-8")
+
+    board.delete_task(task.id)
+
+    assert (tmp_path / f"{task.id}.md-deleted").read_text(encoding="utf-8") == "an older deleted Task"
+    assert (tmp_path / f"{task.id}.md-deleted-2").exists()
+
+
+def test_several_tasks_are_deleted_together_and_none_if_one_is_in_process(board):
+    a = board.add_task("A")
+    b = board.add_task("B")
+    c = board.add_task("C")
+    busy = board.add_task("Busy")
+    board.move_task(busy.id, Stage.IN_PROCESS)
+
+    with pytest.raises(DeleteRefused):
+        board.delete_tasks([a.id, busy.id])
+    board.delete_tasks([a.id, c.id])
+
+    assert titles(board.lane(Stage.INBOX, LaneKind.SOMEDAY)) == ["B"]
+    assert board.task(b.id).priority == 1
+
+
+def test_duplicating_an_inbox_task_copies_it_with_unfinished_subtasks_right_below_the_original(board):
+    board.add_task("A")
+    original = board.add_task(
+        "Ship",
+        details="- [x] Build\n- [X] Test\n- [ ] Tag\n\nNotes #release",
+        usable_data="https://example.com",
+        activity=Activity.DEVELOP_CODE,
+    )
+    board.add_task("C")
+
+    copy = board.duplicate_task(original.id)
+
+    assert titles(board.lane(Stage.INBOX, LaneKind.SOMEDAY)) == ["A", "Ship", "[Duplication] Ship", "C"]
+    assert copy.id != original.id
+    assert copy.details == "- [ ] Build\n- [ ] Test\n- [ ] Tag\n\nNotes #release"
+    assert (copy.usable_data, copy.activity, copy.tags) == ("https://example.com", Activity.DEVELOP_CODE, ("release",))
+    assert board.task(original.id).details.startswith("- [x] Build")  # the original keeps its ticks
+
+
+def test_a_duplicate_keeps_the_dates_and_sorts_among_time_limited_tasks(board):
+    original = board.add_task("Trip", due_date=date(2026, 11, 3), deadline=date(2026, 11, 9))
+
+    copy = board.duplicate_task(original.id)
+
+    assert (copy.due_date, copy.deadline, copy.priority) == (date(2026, 11, 3), date(2026, 11, 9), None)
+    assert titles(board.lane(Stage.INBOX, LaneKind.TIME_LIMITED)) == ["Trip", "[Duplication] Trip"]
+
+
+def test_only_inbox_tasks_can_be_duplicated(board):
+    busy = board.add_task("Busy")
+    board.move_task(busy.id, Stage.IN_PROCESS)
+
+    with pytest.raises(DuplicateRefused):
+        board.duplicate_task(busy.id)

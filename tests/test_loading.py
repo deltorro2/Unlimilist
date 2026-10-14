@@ -51,6 +51,7 @@ def test_the_window_opens_at_once_with_a_loading_card_over_a_faded_outline(windo
         assert column.placeholder_count() > 0
         assert column.cards() == []
     assert not window.new_task_action.isEnabled()
+    assert not window.delete_action.isEnabled()
 
 
 def test_once_loading_ends_the_card_goes_and_the_board_fills_in(qtbot, window, task_folder):
@@ -62,7 +63,7 @@ def test_once_loading_ends_the_card_goes_and_the_board_fills_in(qtbot, window, t
     assert titles(window, Stage.IN_PROCESS) == ["1. Ship"]
     assert all(window.board_view.column_widget(s).placeholder_count() == 0 for s in Stage)
     assert [b.tag for b in window.sidebar.tag_bubbles()] == ["home"]
-    assert window.new_task_action.isEnabled()
+    assert window.new_task_action.isEnabled() and window.delete_action.isEnabled()
 
 
 def test_the_card_stays_for_the_minimum_time_even_when_loading_is_quick(qtbot, window, task_folder):

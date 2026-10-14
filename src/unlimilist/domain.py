@@ -43,6 +43,10 @@ class DeleteRefused(ValueError):
     """A Task in In Process cannot be deleted; it has to leave In Process first."""
 
 
+class DuplicateRefused(ValueError):
+    """Only an Inbox Task can be duplicated."""
+
+
 class UnfinishedSubtasks(ValueError):
     """A Task cannot enter Done while some of its Subtasks are unfinished."""
 
@@ -54,6 +58,14 @@ class UnfinishedSubtasks(ValueError):
 
 # A Markdown task-list item, e.g. "- [ ] Test" or "1. [x] Build".
 _SUBTASK = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\[([ xX])\]", re.MULTILINE)
+
+_TICKED_SUBTASK = re.compile(r"^(\s*(?:[-*+]|\d+[.)])\s+\[)[xX](\])", re.MULTILINE)
+
+
+def untick_subtasks(details: str) -> str:
+    """`details` with every Subtask unfinished."""
+    return _TICKED_SUBTASK.sub(r"\1 \2", details)
+
 
 # Code and links never hold Tags: fenced blocks, `code spans`, [text](url) and <autolinks>.
 _NOT_TAG_TEXT = re.compile(r"```.*?```|`[^`\n]*`|!?\[[^\]\n]*\]\([^)\n]*\)|<[^>\s]+>", re.DOTALL)

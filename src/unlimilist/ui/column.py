@@ -26,6 +26,7 @@ _CONVERSION_HINTS = {
 
 class ColumnWidget(QFrame):
     cardClicked = Signal(str)
+    cardMenuRequested = Signal(str, QPoint)
     # task id, target Stage, target LaneKind (None for Done), drop rank index among the Someday cards,
     # and the drop point on screen
     taskDropped = Signal(str, object, object, int, QPoint)
@@ -143,6 +144,7 @@ class ColumnWidget(QFrame):
             kind = None if self.stage == Stage.DONE else task.kind
             card = CardWidget(task, urgency, card_fill(self.stage, kind, index, len(tasks)))
             card.clicked.connect(self.cardClicked)
+            card.menuRequested.connect(self.cardMenuRequested)
             row = self._row_for(card)
             self._stack.insertWidget(self._stack.count() - 1, row)
             self._cards.append(card)

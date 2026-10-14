@@ -6,9 +6,20 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import Protocol
 
-from unlimilist.domain import Activity, DeleteRefused, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
+from unlimilist.domain import (
+    Activity,
+    DeleteRefused,
+    DuplicateRefused,
+    LaneKind,
+    Stage,
+    Task,
+    UnfinishedSubtasks,
+    Urgency,
+    untick_subtasks,
+)
 
 _KEEP = object()
+_DUPLICATE_PREFIX = "[Duplication] "
 _TOP_SOMEDAY = 5  # Someday Tasks shown right after the first Time-limited Task
 _NEAR_COUNT = 3  # Time-limited Tasks under a month away that may follow them
 
@@ -135,13 +146,40 @@ class Board:
         self._renumber(*source)
         return self._tasks[task_id]
 
+    def duplicate_task(self, task_id: str) -> Task:
+        """A copy of an Inbox Task titled "[Duplication] <title>", with every Subtask unfinished. A Someday copy is
+        ranked right below the original; a Time-limited one sorts by its (same) dates."""
+        original = self._tasks[task_id]
+        if original.stage != Stage.INBOX:
+            raise DuplicateRefused("Only an Inbox Task can be duplicated")
+        return self.add_task(
+            f"{_DUPLICATE_PREFIX}{original.title}",
+            details=untick_subtasks(original.details),
+            usable_data=original.usable_data,
+            due_date=original.due_date,
+            deadline=original.deadline,
+            priority=original.priority + 1 if original.priority is not None else None,
+            activity=original.activity,
+        )
+
+    def delete_tasks(self, task_ids: Iterable[str]) -> None:
+        """Delete several Tasks at once; if any is in In Process, none is deleted."""
+        task_ids = list(task_ids)
+        for task_id in task_ids:
+            self._check_deletable(task_id)
+        for task_id in task_ids:
+            self.delete_task(task_id)
+
     def delete_task(self, task_id: str) -> None:
-        if self._tasks[task_id].stage == Stage.IN_PROCESS:
-            raise DeleteRefused("Move the Task out of In Process to delete it")
+        self._check_deletable(task_id)
         task = self._tasks.pop(task_id)
         self._unindex_tags(task)
         self._store.delete(task_id)
         self._renumber(task.stage, task.kind)
+
+    def _check_deletable(self, task_id: str) -> None:
+        if self._tasks[task_id].stage == Stage.IN_PROCESS:
+            raise DeleteRefused("Move the Task out of In Process to delete it")
 
     def task(self, task_id: str) -> Task:
         return self._tasks[task_id]

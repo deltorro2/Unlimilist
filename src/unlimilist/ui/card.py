@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QSizePolicy,
     QVBoxLayout,
+    QWidget,
 )
 
 from unlimilist.domain import LaneKind, Stage, Task, Urgency
@@ -38,6 +39,8 @@ _STATUS_SIZE = 12
 _BADGE_SIZE = 14
 _BADGE_GAP = 6
 _LATE_BORDER_WIDTH = 2
+_MARK_WASH = QColor(255, 255, 255, 140)
+_MARK_CHECK_SIZE = 16
 
 
 class Dragged(NamedTuple):
@@ -129,8 +132,36 @@ def wrap_lines(text: str, font: QFont, width: int, max_lines: int, first_width: 
     return lines
 
 
+class _MarkOverlay(QWidget):
+    """Laid over a card selected for deleting: fades it to half strength and shows a red check where the card
+    starts, over its Activity badge (or the status circle on a Done card)."""
+
+    def __init__(self, parent: QWidget):
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.hide()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), _MARK_WASH)
+        size = _MARK_CHECK_SIZE
+        centre = self.parentWidget().mark_anchor()
+        circle = QRectF(centre.x() - size / 2, centre.y() - size / 2, size, size)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(LATE_BORDER)
+        painter.drawEllipse(circle)
+        painter.setPen(QPen(QColor("#FFFFFF"), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        x, y = circle.left(), circle.top()
+        painter.drawPolyline([QPoint(int(x + size * 0.28), int(y + size * 0.52)),
+                              QPoint(int(x + size * 0.44), int(y + size * 0.68)),
+                              QPoint(int(x + size * 0.72), int(y + size * 0.36))])
+        painter.end()
+
+
 class CardWidget(QFrame):
     clicked = Signal(str)
+    menuRequested = Signal(str, QPoint)  # task id, where on screen
 
     def __init__(self, task: Task, urgency: Urgency, fill: QColor, parent=None):
         super().__init__(parent)
@@ -139,6 +170,8 @@ class CardWidget(QFrame):
         self._fill = fill
         self._press_pos: QPoint | None = None
         self._done = task.stage == Stage.DONE
+        self._marked = False
+        self._draggable = True
         self.setCursor(Qt.CursorShape.OpenHandCursor)
 
         ink = text_colour(fill)
@@ -224,12 +257,34 @@ class CardWidget(QFrame):
         layout.addWidget(self.activity_badge, 0, Qt.AlignmentFlag.AlignTop)
         layout.addLayout(content, 1)
 
+        self._mark_overlay = _MarkOverlay(self)
+
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(12)
         shadow.setOffset(0, 3)
         shadow.setColor(QColor(0, 0, 0, 85))
         self.setGraphicsEffect(shadow)
         self._fit_text()
+
+    def set_marked(self, marked: bool) -> None:
+        """Selected for deleting: faded, with a red check."""
+        self._marked = marked
+        self._mark_overlay.setVisible(marked)
+        self._mark_overlay.raise_()
+
+    def mark_anchor(self) -> QPoint:
+        """Where the red check goes: on the first line, over the Activity badge or, on a Done card, the circle."""
+        anchor = self.status_icon if self._done else self.activity_badge
+        return anchor.mapTo(self, anchor.rect().center())
+
+    def is_marked(self) -> bool:
+        return self._marked
+
+    def set_draggable(self, draggable: bool) -> None:
+        self._draggable = draggable
+
+    def draggable(self) -> bool:
+        return self._draggable
 
     def fill(self) -> str:
         """The card's base colour, as #rrggbb."""
@@ -272,11 +327,17 @@ class CardWidget(QFrame):
             margins.top() + (self._title_line - self.tag_chip.height()) // 2,
         )
         self.tag_chip.raise_()
+        if hasattr(self, "_mark_overlay"):
+            self._mark_overlay.raise_()  # the check stays above the chip
         self.updateGeometry()  # the line count, and so the height, may have changed
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._fit_text()
+        self._mark_overlay.setGeometry(self.rect())
+
+    def contextMenuEvent(self, event):
+        self.menuRequested.emit(self.task.id, event.globalPos())
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -308,7 +369,7 @@ class CardWidget(QFrame):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        if self._press_pos is None:
+        if self._press_pos is None or not self._draggable:
             return
         if (event.position().toPoint() - self._press_pos).manhattanLength() < QApplication.startDragDistance():
             return

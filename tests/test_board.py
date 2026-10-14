@@ -448,3 +448,62 @@ def test_tag_suggestions_put_prefix_matches_first_then_fuzzy_ones_most_used_firs
     assert board.suggest_tags("wk") == ["work", "wiki", "network", "weekly"]  # equally used: A to Z
     assert board.suggest_tags("WE") == ["weekly"]
     assert board.suggest_tags("xyz") == []
+
+
+def add_someday(board, count, stage=Stage.INBOX):
+    for n in range(1, count + 1):
+        task = board.add_task(f"S{n}")
+        if stage != Stage.INBOX:
+            board.move_task(task.id, stage)
+
+
+def test_later_time_limited_tasks_sit_further_down_among_someday_tasks_by_month(board):
+    # Today is 12/10/2026.
+    add_someday(board, 12)
+    board.add_task("T1", deadline=date(2026, 10, 15))  # the top
+    board.add_task("T2", deadline=date(2026, 10, 17))  # the three: under a month away
+    board.add_task("T3", due_date=date(2026, 10, 20))
+    board.add_task("T4", deadline=date(2026, 10, 25))
+    board.add_task("T5", deadline=date(2026, 11, 1))  # under a month, but beyond the three: after 1
+    board.add_task("T6", due_date=date(2026, 11, 20), deadline=date(2026, 12, 31))  # 1 month: after 2
+    board.add_task("T7", deadline=date(2027, 1, 15))  # 3 months: after 4
+
+    assert titles(board.column(Stage.INBOX)) == [
+        "T1", "S1", "S2", "S3", "S4", "S5", "T2", "T3", "T4",
+        "S6", "T5", "S7", "T6", "S8", "S9", "T7", "S10", "S11", "S12",
+    ]
+
+
+def test_only_time_limited_tasks_under_a_month_away_join_the_three(board):
+    add_someday(board, 8)
+    board.add_task("T1", deadline=date(2026, 10, 15))
+    board.add_task("T2", deadline=date(2026, 11, 20))  # 1 month away: after 2, not among the three
+
+    assert titles(board.column(Stage.INBOX)) == ["T1", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "T2", "S8"]
+
+
+def test_whole_months_round_down_and_past_dates_count_as_under_a_month(board):
+    add_someday(board, 9, Stage.IN_PROCESS)
+    for title, deadline in [
+        ("T1", date(2026, 10, 1)),
+        ("T2", date(2026, 10, 2)),
+        ("T3", date(2026, 10, 3)),
+        ("T4", date(2026, 10, 4)),
+        ("T5", date(2026, 10, 5)),  # in the past: after 1
+        ("T6", date(2026, 11, 11)),  # one day short of a month: after 1
+        ("T7", date(2026, 11, 12)),  # exactly a month: after 2
+    ]:
+        board.move_task(board.add_task(title, deadline=deadline).id, Stage.IN_PROCESS)
+
+    assert titles(board.column(Stage.IN_PROCESS)) == [
+        "T1", "S1", "S2", "S3", "S4", "S5", "T2", "T3", "T4", "S6", "T5", "T6", "S7", "T7", "S8", "S9",
+    ]
+
+
+def test_time_limited_tasks_pushed_past_the_last_someday_task_come_at_the_end_in_date_order(board):
+    add_someday(board, 6)
+    board.add_task("T1", deadline=date(2026, 10, 15))
+    board.add_task("T3", deadline=date(2027, 9, 1))
+    board.add_task("T2", deadline=date(2027, 6, 1))
+
+    assert titles(board.column(Stage.INBOX)) == ["T1", "S1", "S2", "S3", "S4", "S5", "S6", "T2", "T3"]

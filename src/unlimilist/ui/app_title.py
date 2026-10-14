@@ -113,3 +113,30 @@ def _ink(font: QFont, text: str) -> QRectF:
     path = QPainterPath()
     path.addText(0, 0, font, text)
     return path.boundingRect()
+
+
+class RingedLetter(QWidget):
+    """One letter centred in a thin red ring: the L of the logo on its own."""
+
+    def __init__(self, letter: str = "L", size: int = 52, parent=None):
+        super().__init__(parent)
+        self._letter = letter
+        self._font = QFont(self.font())
+        self._font.setPixelSize(round(size / _RING_TO_CAP))
+        self._font.setWeight(QFont.Weight.ExtraBold)
+        self._pen_width = max(1.5, size * _RING_WIDTH_TO_DIAMETER)
+        self.setFixedSize(size, size)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        inset = self._pen_width / 2
+        ring = QRectF(self.rect()).adjusted(inset, inset, -inset, -inset)
+        painter.setPen(QPen(_RED, self._pen_width))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(ring)
+        ink = _ink(self._font, self._letter)
+        painter.setFont(self._font)
+        painter.setPen(_INK)
+        painter.drawText(QPointF(ring.center().x() - ink.center().x(), ring.center().y() - ink.center().y()), self._letter)
+        painter.end()

@@ -21,7 +21,7 @@ A subdivision of a Stage that holds either Someday Tasks or Time-limited Tasks. 
 _Avoid_: Substack, swimlane, section
 
 **Column**:
-How the Board shows one Stage: its Lanes interleaved, with Someday Tasks aligned left and Time-limited Tasks aligned right. The order is the first Time-limited Task, then the top five Someday Tasks, then the remaining Time-limited Tasks, then the remaining Someday Tasks.
+How the Board shows one Stage: its Lanes interleaved, with Someday Tasks aligned left and Time-limited Tasks aligned right. The order starts with the first Time-limited Task, then the top five Someday Tasks, then up to three more Time-limited Tasks that are under a month away. Every other Time-limited Task sits among the remaining Someday Tasks, after one Someday Task plus one more for each whole month until its earlier date. Time-limited Tasks keep their date order, and any that go past the last Someday Task come at the end.
 _Avoid_: Merged lane, stack
 
 **Inbox / In Process / Done**:

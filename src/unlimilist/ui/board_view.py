@@ -42,6 +42,14 @@ class BoardView(QWidget):
     def column_widget(self, stage: Stage) -> ColumnWidget:
         return self._columns[stage]
 
+    def set_board(self, board: Board) -> None:
+        """Show `board` from the next refresh on."""
+        self._board = board
+
+    def show_placeholders(self, count: int = 4) -> None:
+        for column in self._columns.values():
+            column.show_placeholders(count)
+
     def set_tag_filter(self, tag_filter: frozenset[str]) -> None:
         """Show only Tasks with any of these Tags (case-folded keys); empty shows every Task."""
         self._tag_filter = tag_filter

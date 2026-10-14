@@ -147,7 +147,9 @@ class CardWidget(QFrame):
 
         # Blue, lightened on dark cards so it stays visible.
         blue = QColor("#A9C8FF") if ink.lightness() > 128 else QColor("#1F5FD6")
-        self.status_icon = QLabel()
+        # Every label has the card as its parent from the start: a parentless label that is shown becomes
+        # a window of its own.
+        self.status_icon = QLabel(self)
         self.status_icon.setProperty("fill", status_fill(task))
         self.status_icon.setPixmap(status_pixmap(status_fill(task), blue))
         self.status_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -156,7 +158,7 @@ class CardWidget(QFrame):
             {"full": "Done", "two_thirds": "Has Subtasks", "empty": "No Subtasks"}[status_fill(task)]
         )
 
-        self.title_label = QLabel()
+        self.title_label = QLabel(self)
         title_font = self.title_label.font()
         title_font.setBold(True)
         title_font.setStrikeOut(self._done)
@@ -166,7 +168,7 @@ class CardWidget(QFrame):
         self.status_icon.setFixedSize(_STATUS_SIZE, title_line)
 
         # The Activity badge sits in the left margin, level with the first title line. Done cards leave it out.
-        self.activity_badge = QLabel()
+        self.activity_badge = QLabel(self)
         self.activity_badge.setProperty("activity", task.activity.value)
         self.activity_badge.setPixmap(activity_pixmap(task.activity, _BADGE_SIZE))
         self.activity_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -189,7 +191,7 @@ class CardWidget(QFrame):
         self.tag_chip.adjustSize()
         self.tag_chip.setHidden(not task.tags)
 
-        self.meta_label = QLabel(self._meta_text())
+        self.meta_label = QLabel(self._meta_text(), self)
         meta_font = self.meta_label.font()
         meta_font.setPointSizeF(meta_font.pointSizeF() - 2)
         self.meta_label.setFont(meta_font)

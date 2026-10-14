@@ -9,6 +9,8 @@ from typing import Protocol
 from unlimilist.domain import Activity, DeleteRefused, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
 
 _KEEP = object()
+_TOP_SOMEDAY = 5  # Someday Tasks shown right after the first Time-limited Task
+_NEAR_COUNT = 3  # Time-limited Tasks under a month away that may follow them
 
 
 class TaskStore(Protocol):
@@ -189,13 +191,33 @@ class Board:
         return sorted(tasks, key=lambda t: (t.earliest_date, t.created_at))
 
     def column(self, stage: Stage) -> list[Task]:
-        """A Stage as the Board shows it: the first Time-limited Task, the top five Someday Tasks,
-        then the remaining Time-limited Tasks, then the remaining Someday Tasks."""
+        """A Stage as the Board shows it (see Column in CONTEXT.md):
+
+        the first Time-limited Task, the top five Someday Tasks, then up to three more Time-limited Tasks that
+        are under a month away. Every other Time-limited Task sits among the remaining Someday Tasks, after one
+        of them plus one more per whole month until its earlier date; any pushed past the last come at the end.
+        """
         if stage == Stage.DONE:
             return self.lane(Stage.DONE)
         someday = self.lane(stage, LaneKind.SOMEDAY)
         time_limited = self.lane(stage, LaneKind.TIME_LIMITED)
-        return time_limited[:1] + someday[:5] + time_limited[1:] + someday[5:]
+        today = self._clock().date()
+
+        first, rest = time_limited[:1], time_limited[1:]
+        three = []
+        while rest and len(three) < _NEAR_COUNT and _whole_months(today, rest[0].earliest_date) == 0:
+            three.append(rest.pop(0))
+
+        # After how many of the remaining Someday Tasks each other Time-limited Task goes. The shift grows with
+        # the date, so the date order is kept.
+        remaining = someday[_TOP_SOMEDAY:]
+        placed: list[Task] = []
+        for index, task in enumerate(remaining + [None]):
+            placed += [t for t in rest if 1 + _whole_months(today, t.earliest_date) == index]
+            if task is not None:
+                placed.append(task)
+        placed += [t for t in rest if 1 + _whole_months(today, t.earliest_date) > len(remaining)]
+        return first + someday[:_TOP_SOMEDAY] + three + placed
 
     def _rank(self, task_id: str, priority: int | None) -> None:
         """Put a Someday Task at `priority` in its Lane (bottom if None) and renumber the Lane 1..N."""
@@ -236,3 +258,9 @@ class Board:
 def _contains_in_order(text: str, letters: str) -> bool:
     remaining = iter(text)
     return all(letter in remaining for letter in letters)
+
+
+def _whole_months(today: date, day: date) -> int:
+    """Whole calendar months from `today` to `day`, rounded down; 0 for today or a past day."""
+    months = (day.year - today.year) * 12 + day.month - today.month - (1 if day.day < today.day else 0)
+    return max(0, months)

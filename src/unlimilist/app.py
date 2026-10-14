@@ -8,7 +8,6 @@ from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
 from unlimilist.board import Board
-from unlimilist.store import MarkdownTaskStore
 from unlimilist.ui.icons import app_icon
 from unlimilist.ui.main_window import MainWindow
 
@@ -52,6 +51,10 @@ QScrollArea { background: transparent; }
 QScrollArea > QWidget > QWidget { background: transparent; }
 QLineEdit#quickAdd { background: #FFFFFF; border: 1px solid #D0D4DC; border-radius: 6px; padding: 6px 8px; color: #1B1B1F; }
 QLineEdit#quickAdd:focus { border: 1px solid #2F6FED; }
+QFrame#placeholderTile { background: #E9ECF2; border: none; border-radius: 6px; }
+QFrame#loadingCard { background: #FFFFFF; border: 1px solid #E4E7EE; border-radius: 14px; }
+QLabel#loadingTitle { font-size: 22px; font-weight: 700; color: #22252B; background: transparent; border: none; }
+QLabel#loadingMessage { font-size: 14px; color: #6B7080; background: transparent; border: none; }
 """
 
 
@@ -89,10 +92,10 @@ def main() -> int:
     app.setPalette(_light_palette())
     app.setStyleSheet(STYLESHEET)
 
-    store = MarkdownTaskStore(tasks_folder())
-    board = Board(store=store)
-    window = MainWindow(board, warnings=store.warnings)
+    # The window opens at once; the Tasks load in the background behind the loading card.
+    window = MainWindow(Board())
     window.show()
+    window.load_from(tasks_folder())
     return app.exec()
 
 

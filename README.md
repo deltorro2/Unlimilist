@@ -15,9 +15,7 @@
   <img src="https://img.shields.io/badge/data-local--first-2ea44f" alt="Local-first">
 </p>
 
-<p align="center">
-  <a href="https://github.com/deltorro2/Unlimilist/releases/latest"><b>⬇ Download for macOS</b></a>
-</p>
+
 
 ![The UnlimiList Board](docs/board.png)
 

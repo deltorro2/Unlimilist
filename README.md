@@ -38,11 +38,18 @@ Write a Tag anywhere in a Task's Details as `#word` (letters, digits, `-` and `_
 Click a card to edit it. Pick an Activity, add Subtasks as checkboxes in the Details, and keep links and snippets in Usable data. A Task can't enter Done while it has unfinished Subtasks.
 
 ### Deleting and duplicating
+![Delete Task mode with three Tasks chosen](docs/delete-mode.png)
+
 - **Delete Task** (the red toolbar button): click the Inbox and Done Tasks to delete, and they fade and show a red check; click one again to unselect it. Then press **Delete** and confirm. Esc cancels. In Process Tasks can't be deleted.
 - **Right-click a Task:** Inbox Tasks offer **Duplicate Task** and **Delete Task**; Done Tasks offer **Delete Task**.
 - A duplicate is titled `[Duplication] <title>`, with the same Details, Usable data, Activity and dates, and every Subtask unticked.
 - Deleting never erases anything: the Task's file is renamed to end in `-deleted`, so the app no longer loads it, but you can recover it by renaming it back ([ADR 0004](docs/adr/0004-deleting-renames-the-task-file.md)).
 
+
+### Startup
+<img src="docs/loading.png" width="600" alt="The loading card over the faded window at startup">
+
+The window opens at once, faded, while your Tasks load in the background. The card stays for at least 5 seconds, then fades away to show the Board.
 
 ## Dev docs
 A personal desktop Kanban for Tasks. The vocabulary is in [CONTEXT.md](CONTEXT.md), and design decisions are in [docs/adr](docs/adr).

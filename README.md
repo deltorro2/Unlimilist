@@ -1,113 +1,175 @@
-# UnlimiList - personal multi-lane task manager for macOS (Windows support on demand)
+<p align="center">
+  <img src="src/unlimilist/assets/app_icon.png" width="112" alt="UnlimiList icon">
+</p>
 
+<h1 align="center">UnlimiList</h1>
 
-[![Latest Release](https://img.shields.io/github/v/release/deltorro2/Unlimilist?include_prereleases)](https://github.com/deltorro2/Unlimilist/releases/latest)
+<p align="center">
+  <b>The calm Kanban for people with too many Tasks.</b><br>
+  Every project, every deadline and every "someday" on one Board, on your Mac, offline.
+</p>
 
+<p align="center">
+  <a href="https://github.com/deltorro2/Unlimilist/releases/latest"><img src="https://img.shields.io/github/v/release/deltorro2/Unlimilist?include_prereleases&label=download" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-111111?logo=apple" alt="macOS on Apple Silicon">
+  <img src="https://img.shields.io/badge/data-local--first-2ea44f" alt="Local-first">
+</p>
 
+<p align="center">
+  <a href="https://github.com/deltorro2/Unlimilist/releases/latest"><b>⬇ Download for macOS</b></a>
+</p>
 
+![The UnlimiList Board](docs/board.png)
 
+## Why UnlimiList?
 
+You juggle many activities, and each one throws off Tasks. Some have hard deadlines; most don't. You work on several at once, priorities shift every day, and every Task gathers its own phone numbers, links and snippets.
 
-## Description
-I have to participate in a large number of different activities, each of which generates multiple tasks. Some of these tasks have strict deadlines, while others do not.
-At any given time, I work on several tasks in parallel, each at a different stage of completion. Every task has its own priority, which is constantly changing.
-In addition, as I work on these tasks, I accumulate various pieces of context-specific information associated with each one, such as phone numbers, code snippets, links, and so on. I would like to store this information alongside the relevant task.
-One important requirement is that the system must work regardless of internet connectivity (local-first).
-None of the tools I’ve evaluated (Jira, Todoist, TickTick, Google Tasks, etc.) fully meet my requirements. At the same time, they come with an incredible number of features that are completely unnecessary for me. 
-What I need is a very simple, Kanban-based task management system (Trello too simple) which presents a huge number of ToDo's and Tasks in the usable form and allows simple triage them by importance level. And that’s when I decided that if I wanted it done right, I’d have to build it myself…
+Jira, Todoist and TickTick do a thousand things you'll never use. Trello does too little. **UnlimiList does the few things that matter, and does them well:** a clear Board, an honest order of what's next, and everything you need for a Task right inside it. No account, no cloud, no internet required.
 
-## Screenshots
+## What you get
 
-### Kanban Board
-![Kanban Board](docs/board.png)
+- 🗂 **One Board, three Stages.** Inbox, In Process and Done. Drag a Task along as the work moves.
+- 📌 **Someday and deadline work, side by side.** Open-ended Tasks are ranked by your Priority on the left; dated Tasks are ordered by date on the right.
+- 🧭 **An order that thinks ahead.** The most urgent dated Task sits on top; later ones drift down among your Someday Tasks, a step for each month away, so nothing far off crowds today.
+- 🚨 **Never miss a date.** Late Tasks get a red border, and Tasks due today or tomorrow an amber stripe.
+- 🧾 **Context lives with the Task.** Rich-text Details for what the Task is, and Usable data for links, numbers and code snippets.
+- ✅ **Subtasks that mean it.** Checklists in the Details; a Task can't reach Done while any are open.
+- 🏷 **Tags with instant filtering.** Write `#client-x` anywhere in the Details; pick Tags in the sidebar to see just those Tasks. Autocomplete suggests the Tags you already use.
+- 📞 **Activities at a glance.** A badge on each card tells a call from a meeting, a coding session or a milestone.
+- 🧹 **Tidy up fast.** Select several Tasks and delete them in one go, or duplicate a Task to reuse it. Deleted files are kept, so nothing is lost by mistake.
+- 🔒 **Your data stays yours.** Every Task is a plain Markdown file on your Mac that you can read, back up or edit in any editor.
 
-Each Stage shows its Someday Tasks on the left, ranked by Priority, and its Time-limited Tasks on the right, ordered by date. A red border marks a late Task (Overdue, or Start passed), and an amber stripe marks one that is Due soon. The badge at the start of a card shows its Activity, and the circle shows its progress: empty, two thirds when it has Subtasks, and full once Done. A card shows its Title, not its Details, so a long Title can wrap over all of the card's lines ([ADR 0003](docs/adr/0003-tiles-show-the-title-not-details.md)).
+### Tags: focus on one client, one project, one theme
 
-### Tags
-![Board filtered by Tags](docs/board-filtered.png)
+![The Board filtered by two Tags](docs/board-filtered.png)
 
-Write a Tag anywhere in a Task's Details as `#word` (letters, digits, `-` and `_`; case doesn't matter). Tags exist only in the text, never as a separate field ([ADR 0002](docs/adr/0002-tags-live-in-details.md)).
+### Everything about a Task in one place
 
-- **On a card:** the first Tag sits at the end of the Title's first line, plus `+N` for the rest, in at most 12 characters (`#reading… +2`).
-- **In the sidebar:** every Tag is listed A–Z with its count. Select one or more to show only Tasks with any of them; the Lane headers then read "2 of 5". **Clear** or **Everything** shows every Task again, and so does creating a Task. While filtered, cards can move to another Stage (landing at the bottom) but can't be reordered.
-- **In the editor:** Tags are underlined, and typing `#` and a letter suggests existing Tags. Up/Down picks, Enter or Tab inserts, and Esc closes the list.
+<p align="center">
+  <img src="docs/task-dialog.png" width="620" alt="The Task dialog: Activity, Details with Subtasks, Usable data, dates and Priority">
+</p>
 
-### Task Details
-![Task Details](docs/task-dialog.png)
+## Get started
 
-Click a card to edit it. Pick an Activity, add Subtasks as checkboxes in the Details, and keep links and snippets in Usable data. A Task can't enter Done while it has unfinished Subtasks.
+1. Download **Unlimilist-&lt;version&gt;.dmg** from the [latest release](https://github.com/deltorro2/Unlimilist/releases/latest).
+2. Open it and drag **Unlimilist** onto **Applications**.
+3. The first time, right-click the app in Applications and choose **Open**, then **Open** again. The app isn't notarized by Apple yet, so macOS asks once.
 
-### Deleting and duplicating
-![Delete Task mode with three Tasks chosen](docs/delete-mode.png)
+UnlimiList runs on macOS on Apple Silicon. Windows support is available on demand.
 
-- **Delete Task** (the red toolbar button): click the Inbox and Done Tasks to delete, and they fade and show a red check; click one again to unselect it. Then press **Delete** and confirm. Esc cancels. In Process Tasks can't be deleted.
-- **Right-click a Task:** Inbox Tasks offer **Duplicate Task** and **Delete Task**; Done Tasks offer **Delete Task**.
-- A duplicate is titled `[Duplication] <title>`, with the same Details, Usable data, Activity and dates, and every Subtask unticked.
-- Deleting never erases anything: the Task's file is renamed to end in `-deleted`, so the app no longer loads it, but you can recover it by renaming it back ([ADR 0004](docs/adr/0004-deleting-renames-the-task-file.md)).
+---
 
+# For developers
 
-### Startup
-<img src="docs/loading.png" width="600" alt="The loading card over the faded window at startup">
+UnlimiList is a Python 3.13 desktop app built with [PySide6](https://doc.qt.io/qtforpython-6/) (Qt 6). Tasks are stored as Markdown files with YAML front matter.
 
-The window opens at once, faded, while your Tasks load in the background. The card stays for at least 5 seconds, then fades away to show the Board.
+| | |
+|---|---|
+| Runtime | Python 3.13, PySide6 (Qt 6), PyYAML |
+| Tests | pytest, pytest-qt |
+| Packaging | PyInstaller (`.app`), dmgbuild (`.dmg`) |
+| Environment | [uv](https://docs.astral.sh/uv/) |
 
-## Dev docs
-A personal desktop Kanban for Tasks. The vocabulary is in [CONTEXT.md](CONTEXT.md), and design decisions are in [docs/adr](docs/adr).
+## Set up
 
-The screenshots above are drawn from a made-up Board, never from your own Tasks. To redraw them after a UI change:
+You only need [uv](https://docs.astral.sh/uv/) and Git. uv installs the pinned Python (see `.python-version`) and every dependency into a local `.venv`, so no separate Python install is needed.
 
 ```sh
-uv run python scripts/readme_screenshots.py   # writes the docs/*.png screenshots
-```
-
-## Building
-
-### Prerequisites
-
-- [uv](https://docs.astral.sh/uv/). It installs the pinned Python (3.13, see `.python-version`) and every dependency, so you don't need a separate Python install.
-  ```sh
-  brew install uv        # or: curl -LsSf https://astral.sh/uv/install.sh | sh
-  ```
-- macOS to build the `.app` bundle. On Windows or Linux the same script builds a plain executable folder instead.
-
-### Steps
-
-```sh
+brew install uv                      # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 git clone https://github.com/deltorro2/Unlimilist.git
 cd Unlimilist
-uv sync                        # create .venv with Python 3.13 and all dependencies
-uv run pytest                  # run the tests (Board domain + pytest-qt UI)
-uv run python -m unlimilist    # run from source
-./scripts/build_app.sh         # build the app with PyInstaller
+uv sync                              # Python 3.13 + runtime and dev dependencies into .venv
 ```
 
-`build_app.sh` writes `dist/Unlimilist.app` on macOS, using the icon `assets/Unlimilist.icns` and stamping the bundle with the app version. It then ad-hoc signs the bundle, so it runs on the Mac that built it.
-
-### macOS installer (DMG)
+## Run and test
 
 ```sh
-./scripts/build_dmg.sh         # builds the app, then dist/Unlimilist-<version>.dmg
+uv run python -m unlimilist          # run from source, against your real data folder
+uv run pytest                        # all tests: the Board domain plus pytest-qt UI tests
 ```
 
-The DMG opens a window with Unlimilist next to an Applications shortcut. To install, drag the app onto Applications. To uninstall, drag it from Applications to the Trash; your Tasks stay in the data folder. The window layout is in `scripts/dmg_settings.py` and is written by [dmgbuild](https://dmgbuild.readthedocs.io), so building needs no Finder permissions.
+The UI tests run on Qt's offscreen platform, so no windows open. Pass `QT_QPA_PLATFORM=cocoa` to run them against real macOS rendering.
 
-The app is built for Apple Silicon (arm64) only. It isn't signed with an Apple Developer ID or notarized, so on the first launch macOS says it can't verify the developer. Right-click the app in Applications and choose **Open**, then **Open** again; after that it opens normally.
+## Project layout
 
-`build/`, `dist/` and the generated `*.spec` file are build output and are not committed.
+```text
+src/unlimilist/
+  domain.py        Task, Stage, Activity, Tags, Subtasks: plain data and rules
+  board.py         the Board: every rule for where a Task sits; no Qt
+  store.py         one Markdown file per Task (load, save, delete)
+  app.py           startup, styles, the data folder
+  ui/              the Qt widgets: main window, Columns, cards, Task dialog, sidebar, loading card
+tests/             test_board.py (domain), test_ui.py, test_loading.py, test_delete_and_duplicate.py
+scripts/           build_app.sh, build_dmg.sh, make_test_tasks.py, readme_screenshots.py
+docs/adr/          architecture decision records
+CONTEXT.md         the glossary: the words the code and the UI use
+```
+
+## Build
+
+```sh
+./scripts/build_app.sh               # dist/Unlimilist.app
+./scripts/build_dmg.sh               # the app, then dist/Unlimilist-<version>.dmg
+```
+
+- **App:** `build_app.sh` stamps the bundle with the app version and ad-hoc signs it, so it runs on the Mac that built it. On Windows or Linux it builds a plain executable folder instead.
+- **DMG:** shows the app beside an Applications shortcut. The layout is in `scripts/dmg_settings.py` and is written by dmgbuild, so building needs no Finder permissions.
+- **Signing:** builds are Apple Silicon (arm64) only, and not signed with an Apple Developer ID or notarized.
+- **Output:** `build/`, `dist/` and the generated `*.spec` file are not committed.
 
 ## Data
 
-Each Task is stored as one Markdown file in the app-data folder (`~/Library/Application Support/Unlimilist/tasks` on macOS). The files are read when the app starts.
+Each Task is one Markdown file in the app-data folder:
 
-### Test Tasks for manual testing
+| OS | Folder |
+|---|---|
+| macOS | `~/Library/Application Support/Unlimilist/tasks` |
+| Windows | `%APPDATA%\Unlimilist\tasks` |
+| Linux | `~/.local/share/Unlimilist/tasks` |
 
-```sh
-uv run python scripts/make_test_tasks.py            # add 26 made-up Tasks beside your own
-uv run python scripts/make_test_tasks.py --remove   # delete them again
+```markdown
+---
+id: 2026-10-12-c4146d
+stage: inbox
+activity: phone-call
+priority: 1
+due_date: null
+deadline: 2026-10-20
+created_at: 2026-10-12 09:00:00
+completed_at: null
+---
+# Call the insurer
+
+## Details
+
+Send the receipts #finance
+
+## Usable data
+
++1 555 0100
 ```
 
-Quit the app first, since it reads the folder only when it starts. The test Tasks are files named `manual-test-NN.md`, so your own Tasks are never touched. Their dates are relative to today, so every Urgency shows: Overdue, Start passed and Due soon. They also cover every Activity, Subtasks that block Done, enough Tags for the sidebar to scroll, a long Tag cut in the chip, long Titles, `#` signs that aren't Tags, and a file with an unknown Activity, which the app reports in the status bar. Each Task's Details say what it checks.
+- The folder is read once, when the app starts. Hand edits are welcome while the app is closed; a broken file is skipped with a warning in the status bar.
+- A deleted Task's file is renamed to end in `-deleted` and never loaded again. Rename it back to restore the Task.
+- To back up, copy the folder.
 
-## Version and icon
+**Test data.** To fill the folder with 26 made-up Tasks that exercise every feature, beside your own Tasks, quit the app and run:
 
-The version lives in `src/unlimilist/__init__.py` and is shown next to the app name. The app icon is `assets/Unlimilist.icns` for the bundle and `src/unlimilist/assets/app_icon.png` for the window.
+```sh
+uv run python scripts/make_test_tasks.py            # add the test Tasks (manual-test-NN.md)
+uv run python scripts/make_test_tasks.py --remove   # remove them again
+```
+
+## Docs
+
+- [CONTEXT.md](CONTEXT.md) is the glossary: Task, Stage, Lane, Someday, Time-limited, Tag, Subtask and more. Use these words in code and UI.
+- [docs/adr](docs/adr) records the decisions that would surprise a newcomer, e.g. why Tags live in the Details text.
+- The screenshots are drawn from a made-up Board, never from real Tasks. Redraw them after a UI change with `uv run python scripts/readme_screenshots.py`.
+
+## Workflow and releases
+
+- **Branches:** features, and the fixes that belong to them, go on `dev`. A pull request brings a finished feature to `main`.
+- **Version:** it lives in `src/unlimilist/__init__.py` and is shown next to the app name.
+- **Releases:** they are tagged on `main` (`v1.8.0`), and the DMG is attached to the GitHub release.
+- **Icons:** the app icon is `assets/Unlimilist.icns` for the bundle and `src/unlimilist/assets/app_icon.png` for the window.

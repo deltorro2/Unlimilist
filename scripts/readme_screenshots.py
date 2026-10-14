@@ -2,18 +2,15 @@
 
     uv run python scripts/readme_screenshots.py
 
-Writes docs/board.png, board-filtered.png, task-dialog.png, delete-mode.png and loading.png. The Board lives in memory only, and its clock is
+Writes docs/board.png, docs/board-filtered.png and docs/task-dialog.png. The Board lives in memory only, and its clock is
 pinned so every Urgency (Due soon, Overdue, Start passed) shows up the same way on every run.
 """
 
 import sys
-import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Qt
-from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -132,29 +129,7 @@ def main() -> int:
     settle(app)
     save(dialog, out / "task-dialog.png")
 
-    # Delete Task mode, with two Inbox Tasks and a Done Task chosen.
-    dialog.close()
-    window.delete_action.trigger()
-    inbox = window.board_view.column_widget(Stage.INBOX).cards()
-    done = window.board_view.column_widget(Stage.DONE).cards()
-    for card in (inbox[1], inbox[3], done[0]):
-        QTest.mouseClick(card, Qt.MouseButton.LeftButton)
-    settle(app)
-    save(window, out / "delete-mode.png")
-    window.close()
-
-    # The loading card at startup: an empty folder loads at once, but the card stays for the minimum time.
-    with tempfile.TemporaryDirectory() as folder:
-        starting = MainWindow(Board())
-        starting.resize(1200, 760)
-        starting.show()
-        starting.load_from(Path(folder), minimum_ms=60_000)
-        for _ in range(12):  # let the bar slide part of the way along
-            QTest.qWait(30)
-        save(starting, out / "loading.png")
-        starting.close()
-
-    print(f"Wrote board.png, board-filtered.png, task-dialog.png, delete-mode.png and loading.png in {out}")
+    print(f"Wrote board.png, board-filtered.png and task-dialog.png in {out}")
     return 0
 
 

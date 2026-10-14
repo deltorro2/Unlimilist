@@ -21,11 +21,19 @@ A subdivision of a Stage that holds either Someday Tasks or Time-limited Tasks. 
 _Avoid_: Substack, swimlane, section
 
 **Column**:
-How the Board shows one Stage: its Lanes interleaved, with Someday Tasks aligned left and Time-limited Tasks aligned right. The order is the first Time-limited Task, then the top five Someday Tasks, then the remaining Time-limited Tasks, then the remaining Someday Tasks.
+How the Board shows one Stage: its Lanes interleaved, with Someday Tasks aligned left and Time-limited Tasks aligned right. The order starts with the first Time-limited Task, then the top five Someday Tasks, then up to three more Time-limited Tasks that are under a month away. Every other Time-limited Task sits among the remaining Someday Tasks, after one Someday Task plus one more for each whole month until its earlier date. Time-limited Tasks keep their date order, and any that go past the last Someday Task come at the end.
 _Avoid_: Merged lane, stack
 
 **Inbox / In Process / Done**:
 The three Stages. Inbox and In Process each have a Someday Lane and a Time-limited Lane. Done is a single list that holds both kinds of Task. A Task in In Process cannot be deleted; it has to leave In Process first.
+
+**Deleted Task**:
+A Task the user deleted from Inbox or Done. It leaves the Board for good, but its file is kept under a name ending in `-deleted`, so it can be recovered by hand. A Task in In Process cannot be deleted.
+_Avoid_: Removed, archived, trashed
+
+**Duplicate**:
+A copy of an Inbox Task, made from its context menu. Its Title is the original's with "[Duplication] " in front. It copies the Details (and so the Tags), Usable data, Activity and dates, but every Subtask starts unfinished. A Someday duplicate is ranked right below the original.
+_Avoid_: Clone, copy
 
 **Priority**:
 A Someday Task's rank within its Lane: 1 is the top, and ranks run 1..N with no gaps or ties. A Someday Task always has a Priority. A new Task, or one that has just become Someday, starts at the bottom. Asking for a rank past the bottom (999 by convention) means the bottom.

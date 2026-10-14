@@ -6,9 +6,22 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import Protocol
 
-from unlimilist.domain import Activity, DeleteRefused, LaneKind, Stage, Task, UnfinishedSubtasks, Urgency
+from unlimilist.domain import (
+    Activity,
+    DeleteRefused,
+    DuplicateRefused,
+    LaneKind,
+    Stage,
+    Task,
+    UnfinishedSubtasks,
+    Urgency,
+    untick_subtasks,
+)
 
 _KEEP = object()
+_DUPLICATE_PREFIX = "[Duplication] "
+_TOP_SOMEDAY = 5  # Someday Tasks shown right after the first Time-limited Task
+_NEAR_COUNT = 3  # Time-limited Tasks under a month away that may follow them
 
 
 class TaskStore(Protocol):
@@ -133,13 +146,40 @@ class Board:
         self._renumber(*source)
         return self._tasks[task_id]
 
+    def duplicate_task(self, task_id: str) -> Task:
+        """A copy of an Inbox Task titled "[Duplication] <title>", with every Subtask unfinished. A Someday copy is
+        ranked right below the original; a Time-limited one sorts by its (same) dates."""
+        original = self._tasks[task_id]
+        if original.stage != Stage.INBOX:
+            raise DuplicateRefused("Only an Inbox Task can be duplicated")
+        return self.add_task(
+            f"{_DUPLICATE_PREFIX}{original.title}",
+            details=untick_subtasks(original.details),
+            usable_data=original.usable_data,
+            due_date=original.due_date,
+            deadline=original.deadline,
+            priority=original.priority + 1 if original.priority is not None else None,
+            activity=original.activity,
+        )
+
+    def delete_tasks(self, task_ids: Iterable[str]) -> None:
+        """Delete several Tasks at once; if any is in In Process, none is deleted."""
+        task_ids = list(task_ids)
+        for task_id in task_ids:
+            self._check_deletable(task_id)
+        for task_id in task_ids:
+            self.delete_task(task_id)
+
     def delete_task(self, task_id: str) -> None:
-        if self._tasks[task_id].stage == Stage.IN_PROCESS:
-            raise DeleteRefused("Move the Task out of In Process to delete it")
+        self._check_deletable(task_id)
         task = self._tasks.pop(task_id)
         self._unindex_tags(task)
         self._store.delete(task_id)
         self._renumber(task.stage, task.kind)
+
+    def _check_deletable(self, task_id: str) -> None:
+        if self._tasks[task_id].stage == Stage.IN_PROCESS:
+            raise DeleteRefused("Move the Task out of In Process to delete it")
 
     def task(self, task_id: str) -> Task:
         return self._tasks[task_id]
@@ -189,13 +229,33 @@ class Board:
         return sorted(tasks, key=lambda t: (t.earliest_date, t.created_at))
 
     def column(self, stage: Stage) -> list[Task]:
-        """A Stage as the Board shows it: the first Time-limited Task, the top five Someday Tasks,
-        then the remaining Time-limited Tasks, then the remaining Someday Tasks."""
+        """A Stage as the Board shows it (see Column in CONTEXT.md):
+
+        the first Time-limited Task, the top five Someday Tasks, then up to three more Time-limited Tasks that
+        are under a month away. Every other Time-limited Task sits among the remaining Someday Tasks, after one
+        of them plus one more per whole month until its earlier date; any pushed past the last come at the end.
+        """
         if stage == Stage.DONE:
             return self.lane(Stage.DONE)
         someday = self.lane(stage, LaneKind.SOMEDAY)
         time_limited = self.lane(stage, LaneKind.TIME_LIMITED)
-        return time_limited[:1] + someday[:5] + time_limited[1:] + someday[5:]
+        today = self._clock().date()
+
+        first, rest = time_limited[:1], time_limited[1:]
+        three = []
+        while rest and len(three) < _NEAR_COUNT and _whole_months(today, rest[0].earliest_date) == 0:
+            three.append(rest.pop(0))
+
+        # After how many of the remaining Someday Tasks each other Time-limited Task goes. The shift grows with
+        # the date, so the date order is kept.
+        remaining = someday[_TOP_SOMEDAY:]
+        placed: list[Task] = []
+        for index, task in enumerate(remaining + [None]):
+            placed += [t for t in rest if 1 + _whole_months(today, t.earliest_date) == index]
+            if task is not None:
+                placed.append(task)
+        placed += [t for t in rest if 1 + _whole_months(today, t.earliest_date) > len(remaining)]
+        return first + someday[:_TOP_SOMEDAY] + three + placed
 
     def _rank(self, task_id: str, priority: int | None) -> None:
         """Put a Someday Task at `priority` in its Lane (bottom if None) and renumber the Lane 1..N."""
@@ -236,3 +296,9 @@ class Board:
 def _contains_in_order(text: str, letters: str) -> bool:
     remaining = iter(text)
     return all(letter in remaining for letter in letters)
+
+
+def _whole_months(today: date, day: date) -> int:
+    """Whole calendar months from `today` to `day`, rounded down; 0 for today or a past day."""
+    months = (day.year - today.year) * 12 + day.month - today.month - (1 if day.day < today.day else 0)
+    return max(0, months)

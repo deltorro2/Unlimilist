@@ -33,6 +33,7 @@ from unlimilist.domain import Activity, Stage, Task
 
 _DETAILS = "## Details"
 _USABLE_DATA = "## Usable data"
+_DELETED = "-deleted"  # a deleted Task's file ends in .md-deleted, which load_all's *.md never matches
 
 
 class MarkdownTaskStore:
@@ -58,7 +59,17 @@ class MarkdownTaskStore:
         os.replace(temporary, path)
 
     def delete(self, task_id: str) -> None:
-        self._path(task_id).unlink(missing_ok=True)
+        """Keep the file, renamed to end in -deleted, so it is never loaded again but can be recovered by hand
+        (see docs/adr/0004-deleting-renames-the-task-file.md). A taken name gets a number."""
+        path = self._path(task_id)
+        if not path.exists():
+            return
+        target = path.with_name(f"{path.name}{_DELETED}")
+        number = 2
+        while target.exists():
+            target = path.with_name(f"{path.name}{_DELETED}-{number}")
+            number += 1
+        os.replace(path, target)
 
     def _path(self, task_id: str) -> Path:
         return self.folder / f"{task_id}.md"

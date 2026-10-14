@@ -1,9 +1,9 @@
 from datetime import date, datetime, timedelta
 
 import pytest
-from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, Qt
 from PySide6.QtGui import QDragEnterEvent, QDropEvent, QFocusEvent, QTextCursor
-from PySide6.QtWidgets import QApplication, QDialog, QLabel, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog, QLabel, QMessageBox, QWidget
 
 from unlimilist.board import Board
 from unlimilist.domain import Activity, LaneKind, Stage
@@ -370,9 +370,9 @@ def test_window_has_the_app_icon(window):
 
 def test_toolbar_shows_the_app_name_with_its_version(window):
     title = window.app_title
-    assert (title.name(), title.version()) == ("UnlimiList", "1.6")
-    assert title.accessibleName() == "UnlimiList 1.6"
-    assert window.windowTitle() == "UnlimiList 1.6"
+    assert (title.name(), title.version()) == ("UnlimiList", "1.8")
+    assert title.accessibleName() == "UnlimiList 1.8"
+    assert window.windowTitle() == "UnlimiList 1.8"
 
 
 def test_column_shows_the_interleaved_order(window, board):
@@ -1022,3 +1022,28 @@ def test_toolbar_title_centres_the_l_in_its_ring_and_no_letter_touches_the_ring(
     assert abs((min(xs) + max(xs)) / 2 - cx) <= 0.5  # the L is centred across the ring
     assert abs((min(ys) + max(ys)) / 2 - cy) <= 0.5  # and from top to bottom
     assert touching == []  # nothing dark on the ring or within 2 px outside it
+
+
+def test_drawing_cards_opens_no_stray_windows(window, board):
+    # A label shown before it has a parent becomes a window of its own: slow, and it can flash on screen.
+    for n in range(5):
+        board.add_task(f"S{n}", details="#work")
+    board.add_task("T", deadline=date(2026, 11, 1))
+    done = board.add_task("D")
+    board.move_task(done.id, Stage.DONE)
+    created = []
+
+    class Spy(QObject):
+        def eventFilter(self, watched, event):
+            if event.type() == QEvent.Type.Show and isinstance(watched, QWidget) and watched.isWindow():
+                created.append(type(watched).__name__)
+            return False
+
+    spy = Spy()
+    QApplication.instance().installEventFilter(spy)
+    try:
+        window.board_view.refresh()
+    finally:
+        QApplication.instance().removeEventFilter(spy)
+
+    assert created == []

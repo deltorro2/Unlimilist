@@ -14,6 +14,7 @@ _STRETCH = {Stage.INBOX: 5, Stage.IN_PROCESS: 5, Stage.DONE: 3}
 
 class BoardView(QWidget):
     cardClicked = Signal(str)
+    cardMenuRequested = Signal(str, QPoint)
     taskAdded = Signal()
     taskDropped = Signal(str, object, object, int, QPoint)
 
@@ -34,6 +35,7 @@ class BoardView(QWidget):
         for stage in Stage:
             column = ColumnWidget(stage, _STAGE_TITLES[stage], self.quick_add if stage == Stage.INBOX else None)
             column.cardClicked.connect(self.cardClicked)
+            column.cardMenuRequested.connect(self.cardMenuRequested)
             column.taskDropped.connect(self.taskDropped)
             self._columns[stage] = column
             layout.addWidget(column, _STRETCH[stage])
@@ -41,6 +43,18 @@ class BoardView(QWidget):
 
     def column_widget(self, stage: Stage) -> ColumnWidget:
         return self._columns[stage]
+
+    def set_board(self, board: Board) -> None:
+        """Show `board` from the next refresh on."""
+        self._board = board
+
+    def cards(self):
+        """Every card on the Board."""
+        return [card for column in self._columns.values() for card in column.cards()]
+
+    def show_placeholders(self, count: int = 4) -> None:
+        for column in self._columns.values():
+            column.show_placeholders(count)
 
     def set_tag_filter(self, tag_filter: frozenset[str]) -> None:
         """Show only Tasks with any of these Tags (case-folded keys); empty shows every Task."""

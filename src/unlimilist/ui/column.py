@@ -26,6 +26,7 @@ _CONVERSION_HINTS = {
 
 class ColumnWidget(QFrame):
     cardClicked = Signal(str)
+    cardMenuRequested = Signal(str, QPoint)
     # task id, target Stage, target LaneKind (None for Done), drop rank index among the Someday cards,
     # and the drop point on screen
     taskDropped = Signal(str, object, object, int, QPoint)
@@ -58,6 +59,7 @@ class ColumnWidget(QFrame):
         self._rows: list[QWidget] = []
         self._filtered = False
         self._task_ids: set[str] = set()
+        self._placeholders: list[QFrame] = []
         self._container = QWidget()
         self._container.setObjectName("laneBody")
         self._stack = QVBoxLayout(self._container)
@@ -101,6 +103,25 @@ class ColumnWidget(QFrame):
         """Cards in the order shown, top to bottom."""
         return list(self._cards)
 
+    def show_placeholders(self, count: int) -> None:
+        """Grey tiles standing in for cards while the Tasks load; set_tasks replaces them."""
+        self._clear_placeholders()
+        for _ in range(count):
+            tile = QFrame()
+            tile.setObjectName("placeholderTile")
+            tile.setFixedHeight(62)
+            self._stack.insertWidget(self._stack.count() - 1, tile)
+            self._placeholders.append(tile)
+
+    def placeholder_count(self) -> int:
+        return len(self._placeholders)
+
+    def _clear_placeholders(self) -> None:
+        for tile in self._placeholders:
+            tile.setParent(None)
+            tile.deleteLater()
+        self._placeholders = []
+
     def lane_headers(self) -> tuple[str, str | None]:
         """The Lane header texts; Done has only one."""
         return self._someday_count.text(), None if self.stage == Stage.DONE else self._time_limited_count.text()
@@ -110,6 +131,7 @@ class ColumnWidget(QFrame):
 
         A card keeps the shade of its place among all of `tasks`, so filtering never recolours it.
         """
+        self._clear_placeholders()
         for row in self._rows:
             row.setParent(None)
             row.deleteLater()
@@ -122,6 +144,7 @@ class ColumnWidget(QFrame):
             kind = None if self.stage == Stage.DONE else task.kind
             card = CardWidget(task, urgency, card_fill(self.stage, kind, index, len(tasks)))
             card.clicked.connect(self.cardClicked)
+            card.menuRequested.connect(self.cardMenuRequested)
             row = self._row_for(card)
             self._stack.insertWidget(self._stack.count() - 1, row)
             self._cards.append(card)

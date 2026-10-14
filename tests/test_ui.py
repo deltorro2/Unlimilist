@@ -369,8 +369,9 @@ def test_window_has_the_app_icon(window):
 
 
 def test_toolbar_shows_the_app_name_with_its_version(window):
-    assert window.app_title.text() == "UnlimiList"
-    assert window.version_badge.text() == "1.6"
+    title = window.app_title
+    assert (title.name(), title.version()) == ("UnlimiList", "1.6")
+    assert title.accessibleName() == "UnlimiList 1.6"
     assert window.windowTitle() == "UnlimiList 1.6"
 
 
@@ -966,3 +967,58 @@ def test_the_suggestions_belong_to_the_dialog_window_so_they_show_above_it(qtbot
     popup = tag_dialog.details_editor.tag_popup
     assert popup.isVisible()
     assert popup.windowHandle().transientParent() is tag_dialog.windowHandle()
+
+
+def red_pixels(image, rect, scale):
+    left, top = int(rect.left() * scale), int(rect.top() * scale)
+    right, bottom = int(rect.right() * scale), int(rect.bottom() * scale)
+    return sum(is_red(image.pixelColor(x, y)) for x in range(left, right) for y in range(top, bottom))
+
+
+def test_toolbar_title_rings_the_l_and_writes_the_version_in_red(window):
+    title = window.app_title
+    image = title.grab().toImage()
+    scale = image.devicePixelRatio()
+    ring = title.ring_rect()
+
+    assert is_red(image.pixelColor(int(ring.center().x() * scale), int((ring.top() + 0.5) * scale)))  # top of the ring
+    assert red_pixels(image, title.version_rect(), scale) > 0
+    assert red_pixels(image, title.name_rect_before_ring(), scale) == 0  # "Unlimi" stays black
+
+
+def ink_pixels(widget, scale=4):
+    """Positions (in widget pixels) of the dark, non-red pixels the widget draws, rendered at `scale`."""
+    from PySide6.QtGui import QPixmap
+
+    pixmap = QPixmap(widget.size() * scale)
+    pixmap.setDevicePixelRatio(scale)
+    pixmap.fill(Qt.GlobalColor.white)
+    widget.render(pixmap)
+    image = pixmap.toImage()
+    dark = []
+    for x in range(image.width()):
+        for y in range(image.height()):
+            colour = image.pixelColor(x, y)
+            if colour.lightness() < 110 and colour.red() - colour.green() < 60:
+                dark.append(((x + 0.5) / scale, (y + 0.5) / scale))
+    return dark
+
+
+def test_toolbar_title_centres_the_l_in_its_ring_and_no_letter_touches_the_ring(window):
+    title = window.app_title
+    ring = title.ring_rect()
+    cx, cy = ring.center().x(), ring.center().y()
+    outer = ring.width() / 2
+    inner = outer - title.ring_width()
+
+    def distance(point):
+        return ((point[0] - cx) ** 2 + (point[1] - cy) ** 2) ** 0.5
+
+    ink = ink_pixels(title)
+    inside = [p for p in ink if distance(p) < inner]
+    touching = [p for p in ink if inner - 1 <= distance(p) <= outer + 2]
+
+    xs, ys = [p[0] for p in inside], [p[1] for p in inside]
+    assert abs((min(xs) + max(xs)) / 2 - cx) <= 0.5  # the L is centred across the ring
+    assert abs((min(ys) + max(ys)) / 2 - cy) <= 0.5  # and from top to bottom
+    assert touching == []  # nothing dark on the ring or within 2 px outside it

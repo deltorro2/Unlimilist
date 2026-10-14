@@ -5,7 +5,6 @@ from PySide6.QtGui import QAction, QCursor, QKeySequence
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
-    QLabel,
     QMainWindow,
     QMessageBox,
     QWidget,
@@ -14,6 +13,7 @@ from PySide6.QtWidgets import (
 from unlimilist import __version__
 from unlimilist.board import Board
 from unlimilist.domain import LaneKind, Stage, UnfinishedSubtasks
+from unlimilist.ui.app_title import AppTitle
 from unlimilist.ui.balloon import Balloon
 from unlimilist.ui.board_view import BoardView
 from unlimilist.ui.icons import app_icon
@@ -81,21 +81,15 @@ class MainWindow(QMainWindow):
         self.resize(min(width, screen.width()), min(height, screen.height()))
 
     def _build_title(self) -> QWidget:
-        """The app's name with its version in a small red circle."""
-        self.app_title = QLabel(_APP_NAME)
+        """The app's name, its L in a red ring, then the version in red."""
+        self.app_title = AppTitle(_APP_NAME, _VERSION)
         self.app_title.setObjectName("appTitle")
-        self.version_badge = QLabel(_VERSION)
-        self.version_badge.setObjectName("versionBadge")
-        self.version_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.version_badge.setFixedSize(26, 26)
 
         title = QWidget()
         title.setObjectName("titleBlock")
         layout = QHBoxLayout(title)
         layout.setContentsMargins(6, 0, 18, 0)
-        layout.setSpacing(5)
-        layout.addWidget(self.app_title)
-        layout.addWidget(self.version_badge, 0, Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(self.app_title, 0, Qt.AlignmentFlag.AlignVCenter)
         return title
 
     def refresh(self) -> None:

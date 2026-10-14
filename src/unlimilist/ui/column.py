@@ -7,6 +7,10 @@ from unlimilist.domain import LaneKind, Stage, Task, Urgency
 from unlimilist.ui.card import CardWidget, decode_drag
 from unlimilist.ui.styling import card_fill
 
+# While the Tag filter hides some cards, a drop position is ambiguous: a Task moved in from another Stage
+# goes to the bottom (rank 999 means the bottom), and reordering within the Stage is refused.
+_BOTTOM_INDEX = 998
+_FILTERED_REORDER_HINT = "Clear the Tag filter to reorder"
 _CARD_SHARE = 3  # a card takes 3 parts of 4, i.e. 75% of the Column width
 _GAP_SHARE = 1
 
@@ -52,6 +56,8 @@ class ColumnWidget(QFrame):
 
         self._cards: list[CardWidget] = []
         self._rows: list[QWidget] = []
+        self._filtered = False
+        self._task_ids: set[str] = set()
         self._container = QWidget()
         self._container.setObjectName("laneBody")
         self._stack = QVBoxLayout(self._container)
@@ -95,12 +101,24 @@ class ColumnWidget(QFrame):
         """Cards in the order shown, top to bottom."""
         return list(self._cards)
 
-    def set_tasks(self, tasks: list[Task], urgencies: list[Urgency]) -> None:
+    def lane_headers(self) -> tuple[str, str | None]:
+        """The Lane header texts; Done has only one."""
+        return self._someday_count.text(), None if self.stage == Stage.DONE else self._time_limited_count.text()
+
+    def set_tasks(self, tasks: list[Task], urgencies: list[Urgency], shown: set[str] | None = None) -> None:
+        """Show `tasks` in order, or only those whose id is in `shown` while the Tag filter is on.
+
+        A card keeps the shade of its place among all of `tasks`, so filtering never recolours it.
+        """
         for row in self._rows:
             row.setParent(None)
             row.deleteLater()
         self._cards, self._rows = [], []
+        self._filtered = shown is not None
+        self._task_ids = {t.id for t in tasks}
         for index, (task, urgency) in enumerate(zip(tasks, urgencies)):
+            if shown is not None and task.id not in shown:
+                continue
             kind = None if self.stage == Stage.DONE else task.kind
             card = CardWidget(task, urgency, card_fill(self.stage, kind, index, len(tasks)))
             card.clicked.connect(self.cardClicked)
@@ -108,12 +126,18 @@ class ColumnWidget(QFrame):
             self._stack.insertWidget(self._stack.count() - 1, row)
             self._cards.append(card)
             self._rows.append(row)
-        someday = sum(1 for t in tasks if t.kind == LaneKind.SOMEDAY)
+        visible = [c.task for c in self._cards]
         if self.stage == Stage.DONE:
-            self._someday_count.setText(f"COMPLETED  ·  {len(tasks)}")
+            self._someday_count.setText(f"COMPLETED  ·  {_count(visible, tasks, self._filtered)}")
         else:
-            self._someday_count.setText(f"SOMEDAY  ·  {someday}")
-            self._time_limited_count.setText(f"TIME-LIMITED  ·  {len(tasks) - someday}")
+            someday = [t for t in tasks if t.kind == LaneKind.SOMEDAY]
+            time_limited = [t for t in tasks if t.kind == LaneKind.TIME_LIMITED]
+            shown_someday = [t for t in visible if t.kind == LaneKind.SOMEDAY]
+            shown_time_limited = [t for t in visible if t.kind == LaneKind.TIME_LIMITED]
+            self._someday_count.setText(f"SOMEDAY  ·  {_count(shown_someday, someday, self._filtered)}")
+            self._time_limited_count.setText(
+                f"TIME-LIMITED  ·  {_count(shown_time_limited, time_limited, self._filtered)}"
+            )
 
     def _row_for(self, card: CardWidget) -> QWidget:
         row = QWidget()
@@ -161,11 +185,16 @@ class ColumnWidget(QFrame):
         if dragged is None:
             event.ignore()
             return
+        if self._reorder_refused(dragged.task_id):
+            event.ignore()
+            return
         event.acceptProposedAction()
         pos = event.position().toPoint()
-        self.taskDropped.emit(
-            dragged.task_id, self.stage, self._side(pos), self._someday_index(dragged.task_id, pos), self.mapToGlobal(pos)
-        )
+        index = _BOTTOM_INDEX if self._filtered else self._someday_index(dragged.task_id, pos)
+        self.taskDropped.emit(dragged.task_id, self.stage, self._side(pos), index, self.mapToGlobal(pos))
+
+    def _reorder_refused(self, task_id: str) -> bool:
+        return self._filtered and task_id in self._task_ids
 
     def _update_drag(self, event) -> None:
         task_id, kind, unfinished = decode_drag(event.mimeData())
@@ -177,13 +206,19 @@ class ColumnWidget(QFrame):
             self._hint.setText(f"{unfinished} unfinished {'subtask' if unfinished == 1 else 'subtasks'}")
             self._hint.show()
             return
+        if self._reorder_refused(task_id):
+            self._set_drop_side("blocked")
+            self._hint.setText(_FILTERED_REORDER_HINT)
+            self._hint.show()
+            self._indicator.hide()
+            return
         self._set_drop_side(side or "all")
         if side is None:
             self._hint.hide()
         else:
             self._hint.setText((_DROP_HINTS if side == kind else _CONVERSION_HINTS)[side])
             self._hint.show()
-        if side == LaneKind.SOMEDAY:
+        if side == LaneKind.SOMEDAY and not self._filtered:
             self._show_indicator(task_id, self._someday_index(task_id, pos))
         else:
             self._indicator.hide()
@@ -225,3 +260,8 @@ class ColumnWidget(QFrame):
         self._body.setProperty("dropSide", value)
         self._body.style().unpolish(self._body)
         self._body.style().polish(self._body)
+
+
+def _count(shown: list[Task], everything: list[Task], filtered: bool) -> str:
+    """"5", or "2 of 5" while the Tag filter hides some Tasks."""
+    return f"{len(shown)} of {len(everything)}" if filtered else str(len(everything))

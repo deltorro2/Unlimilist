@@ -21,7 +21,16 @@ What I need is a very simple, Kanban-based task management system (Trello too si
 ### Kanban Board
 ![Kanban Board](docs/board.png)
 
-Each Stage shows its Someday Tasks on the left, ranked by Priority, and its Time-limited Tasks on the right, ordered by date. A red border marks a late Task (Overdue, or Start passed), and an amber stripe marks one that is Due soon. The badge at the start of a card shows its Activity, and the circle shows its progress: empty, two thirds when it has Subtasks, and full once Done.
+Each Stage shows its Someday Tasks on the left, ranked by Priority, and its Time-limited Tasks on the right, ordered by date. A red border marks a late Task (Overdue, or Start passed), and an amber stripe marks one that is Due soon. The badge at the start of a card shows its Activity, and the circle shows its progress: empty, two thirds when it has Subtasks, and full once Done. A card shows its Title, not its Details, so a long Title can wrap over all of the card's lines ([ADR 0003](docs/adr/0003-tiles-show-the-title-not-details.md)).
+
+### Tags
+![Board filtered by Tags](docs/board-filtered.png)
+
+Write a Tag anywhere in a Task's Details as `#word` (letters, digits, `-` and `_`; case doesn't matter). Tags exist only in the text, never as a separate field ([ADR 0002](docs/adr/0002-tags-live-in-details.md)).
+
+- **On a card:** the first Tag sits at the end of the Title's first line, plus `+N` for the rest, in at most 12 characters (`#reading… +2`).
+- **In the sidebar:** every Tag is listed A–Z with its count. Select one or more to show only Tasks with any of them; the Lane headers then read "2 of 5". **Clear** or **Everything** shows every Task again, and so does creating a Task. While filtered, cards can move to another Stage (landing at the bottom) but can't be reordered.
+- **In the editor:** Tags are underlined, and typing `#` and a letter suggests existing Tags. Up/Down picks, Enter or Tab inserts, and Esc closes the list.
 
 ### Task Details
 ![Task Details](docs/task-dialog.png)
@@ -31,6 +40,12 @@ Click a card to edit it. Pick an Activity, add Subtasks as checkboxes in the Det
 
 ## Dev docs
 A personal desktop Kanban for Tasks. The vocabulary is in [CONTEXT.md](CONTEXT.md), and design decisions are in [docs/adr](docs/adr).
+
+The screenshots above are drawn from a made-up Board, never from your own Tasks. To redraw them after a UI change:
+
+```sh
+uv run python scripts/readme_screenshots.py   # writes the docs/*.png screenshots
+```
 
 ## Building
 
@@ -70,6 +85,15 @@ The app is built for Apple Silicon (arm64) only. It isn't signed with an Apple D
 ## Data
 
 Each Task is stored as one Markdown file in the app-data folder (`~/Library/Application Support/Unlimilist/tasks` on macOS). The files are read when the app starts.
+
+### Test Tasks for manual testing
+
+```sh
+uv run python scripts/make_test_tasks.py            # add 26 made-up Tasks beside your own
+uv run python scripts/make_test_tasks.py --remove   # delete them again
+```
+
+Quit the app first, since it reads the folder only when it starts. The test Tasks are files named `manual-test-NN.md`, so your own Tasks are never touched. Their dates are relative to today, so every Urgency shows: Overdue, Start passed and Due soon. They also cover every Activity, Subtasks that block Done, enough Tags for the sidebar to scroll, a long Tag cut in the chip, long Titles, `#` signs that aren't Tags, and a file with an unknown Activity, which the app reports in the status bar. Each Task's Details say what it checks.
 
 ## Version and icon
 

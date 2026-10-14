@@ -6,8 +6,6 @@ from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QWidget,
@@ -19,6 +17,7 @@ from unlimilist.domain import LaneKind, Stage, UnfinishedSubtasks
 from unlimilist.ui.balloon import Balloon
 from unlimilist.ui.board_view import BoardView
 from unlimilist.ui.icons import app_icon
+from unlimilist.ui.sidebar import Sidebar
 from unlimilist.ui.task_dialog import TaskDialog
 
 _TEN_MINUTES_MS = 10 * 60 * 1000
@@ -35,20 +34,17 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(app_icon())
         self._open_at_default_size()
 
-        self.sidebar = QListWidget()
-        self.sidebar.setObjectName("sidebar")
-        self.sidebar.setFixedWidth(190)
-        self.sidebar.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        everything = QListWidgetItem("Everything")
-        self.sidebar.addItem(everything)
-        placeholder = QListWidgetItem("TBD")
-        placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
-        self.sidebar.addItem(placeholder)
-        self.sidebar.setCurrentItem(everything)
+        # The Tag filter (case-folded Tag keys) starts empty on every launch.
+        self._tag_filter: frozenset[str] = frozenset()
+        self.sidebar = Sidebar()
+        self.sidebar.tagClicked.connect(self.toggle_tag)
+        self.sidebar.clearClicked.connect(self.clear_tag_filter)
+        self.sidebar.everythingClicked.connect(self.clear_tag_filter)
 
         self.balloon = Balloon(self)
         self.board_view = BoardView(board)
         self.board_view.cardClicked.connect(self.open_task)
+        self.board_view.taskAdded.connect(self._task_created)
         # Queued: a drop may open a modal dialog, which must not run inside the drag loop.
         self.board_view.taskDropped.connect(self.handle_drop, Qt.ConnectionType.QueuedConnection)
 
@@ -75,8 +71,9 @@ class MainWindow(QMainWindow):
 
         # Urgency depends on today's date, so keep it current while the app stays open.
         self._clock_timer = QTimer(self)
-        self._clock_timer.timeout.connect(self.board_view.refresh)
+        self._clock_timer.timeout.connect(self.refresh)
         self._clock_timer.start(_TEN_MINUTES_MS)
+        self.refresh()
 
     def _open_at_default_size(self) -> None:
         width, height = _DEFAULT_SIZE
@@ -101,13 +98,34 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.version_badge, 0, Qt.AlignmentFlag.AlignTop)
         return title
 
+    def refresh(self) -> None:
+        """Redraw the sidebar's Tags and the Board. A selected Tag that no Task has any more is dropped."""
+        tags = self._board.tags()
+        self._tag_filter = self._tag_filter & {name.casefold() for name, _ in tags}
+        self.sidebar.set_tags(tags, self._tag_filter)
+        self.board_view.set_tag_filter(self._tag_filter)
+
+    def toggle_tag(self, key: str) -> None:
+        self._tag_filter = self._tag_filter ^ {key}
+        self.refresh()
+
+    def clear_tag_filter(self) -> None:
+        self._tag_filter = frozenset()
+        self.refresh()
+
+    def _task_created(self) -> None:
+        """Creating a Task clears the Tag filter, so the new Task is never hidden."""
+        self.clear_tag_filter()
+
     def new_task(self) -> None:
-        TaskDialog(self._board, parent=self).exec()
-        self.board_view.refresh()
+        if TaskDialog(self._board, parent=self).exec() == QDialog.DialogCode.Accepted:
+            self._task_created()
+        else:
+            self.refresh()
 
     def open_task(self, task_id: str) -> None:
         TaskDialog(self._board, self._board.task(task_id), parent=self).exec()
-        self.board_view.refresh()
+        self.refresh()
 
     def handle_drop(
         self, task_id: str, stage: Stage, kind: LaneKind | None, index: int, at: QPoint | None = None
@@ -137,4 +155,4 @@ class MainWindow(QMainWindow):
             if answer == QMessageBox.StandardButton.Yes:
                 self._board.edit_task(task_id, due_date=None, deadline=None)
                 self._board.move_task(task_id, stage, priority=index + 1)
-        self.board_view.refresh()
+        self.refresh()

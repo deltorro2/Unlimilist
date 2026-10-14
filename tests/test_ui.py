@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 import pytest
 from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QDragEnterEvent, QDropEvent, QFocusEvent, QTextCursor
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog, QLabel, QMessageBox
 
 from unlimilist.board import Board
 from unlimilist.domain import Activity, LaneKind, Stage
@@ -370,8 +370,8 @@ def test_window_has_the_app_icon(window):
 
 def test_toolbar_shows_the_app_name_with_its_version(window):
     assert window.app_title.text() == "UnlimiList"
-    assert window.version_badge.text() == "1.5"
-    assert window.windowTitle() == "UnlimiList 1.5"
+    assert window.version_badge.text() == "1.6"
+    assert window.windowTitle() == "UnlimiList 1.6"
 
 
 def test_column_shows_the_interleaved_order(window, board):
@@ -409,17 +409,6 @@ def test_done_column_is_narrower(window):
     assert done == pytest.approx(0.6 * inbox, rel=0.05)
 
 
-def test_card_previews_details_as_plain_text(window, board):
-    board.add_task("Groceries", details="**Oat** milk and _bread_\n\n- eggs")
-    window.board_view.refresh()
-
-    card = column_cards(window, Stage.INBOX)[0]
-
-    assert card.details_label.text().startswith("Oat milk and bread")
-    assert "*" not in card.details_label.text()
-    assert card.meta_label.isHidden()  # Someday cards have no dates line
-
-
 def test_time_limited_card_shows_its_dates_as_day_month_year(window, board):
     board.add_task("Trip", due_date=date(2026, 11, 3), deadline=date(2026, 11, 9))
     window.board_view.refresh()
@@ -438,7 +427,6 @@ def test_done_card_title_is_struck_through(window, board):
     card = column_cards(window, Stage.DONE)[0]
 
     assert card.title_label.font().strikeOut()
-    assert card.details_label.isHidden()
 
 
 def test_every_card_has_a_status_circle_before_its_title(window, board):
@@ -480,17 +468,6 @@ def test_done_cards_have_no_activity_badge(window, board):
     card = column_cards(window, Stage.DONE)[0]
 
     assert card.activity_badge.isHidden()
-
-
-def test_card_preview_leaves_out_subtasks(window, board):
-    board.add_task("Ship", details="- [x] Build\n- [ ] Test\n\nRemember the icon")
-    board.add_task("Checklist only", details="- [ ] Test")
-    window.board_view.refresh()
-
-    ship, checklist = column_cards(window, Stage.INBOX)
-
-    assert ship.details_label.text() == "Remember the icon"
-    assert checklist.details_label.isHidden()
 
 
 def edge_colour(card):
@@ -605,3 +582,387 @@ def test_dropping_someday_on_the_time_limited_side_moves_it_once_a_date_is_added
 
     assert card_titles(window, Stage.IN_PROCESS, LaneKind.TIME_LIMITED) == ["A"]
     assert card_titles(window, Stage.INBOX) == []
+
+
+def test_card_shows_its_first_tag_in_the_corner_with_how_many_more(window, board):
+    board.add_task("One", details="Call #client-x")
+    board.add_task("Three", details="#home, #car and #Home again, then #bank")
+    board.add_task("None", usable_data="https://example.com")
+    window.board_view.refresh()
+
+    chips = {c.task.title: (None if c.tag_chip.isHidden() else c.tag_chip.text()) for c in column_cards(window, Stage.INBOX)}
+
+    assert chips == {"One": "#client-x", "Three": "#home +2", "None": None}
+
+
+def test_done_cards_show_their_tag_too(window, board):
+    a = board.add_task("A", details="#work")
+    board.move_task(a.id, Stage.DONE)
+    window.board_view.refresh()
+
+    assert column_cards(window, Stage.DONE)[0].tag_chip.text() == "#work"
+
+
+def test_cards_no_longer_flag_usable_data(window, board):
+    board.add_task("A", usable_data="https://example.com")
+    window.board_view.refresh()
+
+    card = column_cards(window, Stage.INBOX)[0]
+
+    assert "📎" not in [label.text() for label in card.findChildren(QLabel)]
+
+
+def bubbles(window):
+    return {b.tag: (b.count, b.is_selected()) for b in window.sidebar.tag_bubbles()}
+
+
+def click_bubble(qtbot, window, tag):
+    bubble = next(b for b in window.sidebar.tag_bubbles() if b.tag == tag)
+    qtbot.mouseClick(bubble, Qt.MouseButton.LeftButton)
+
+
+def lane_headers(window, stage):
+    return window.board_view.column_widget(stage).lane_headers()
+
+
+@pytest.fixture
+def tagged(board):
+    board.add_task("Plan", details="#home")
+    board.add_task("Code", details="#work #home")
+    board.add_task("Read")
+    board.add_task("Demo", details="#client-x", deadline=date(2026, 11, 1))
+    board.add_task("Book", deadline=date(2026, 11, 2))
+    done = board.add_task("Retro", details="#work")
+    board.move_task(done.id, Stage.DONE)
+    return board
+
+
+def test_sidebar_lists_every_tag_a_to_z_with_its_count(window, tagged):
+    window.refresh()
+
+    assert [b.tag for b in window.sidebar.tag_bubbles()] == ["client-x", "home", "work"]
+    assert bubbles(window) == {"client-x": (1, False), "home": (2, False), "work": (2, False)}
+    assert not window.sidebar.clear_button.isEnabled()
+
+
+def test_selecting_tags_shows_tasks_with_any_of_them(qtbot, window, tagged):
+    window.refresh()
+
+    click_bubble(qtbot, window, "work")
+    click_bubble(qtbot, window, "client-x")
+
+    assert card_titles(window, Stage.INBOX) == ["Demo", "2. Code"]  # real Priority kept
+    assert card_titles(window, Stage.DONE) == ["Retro"]
+    assert lane_headers(window, Stage.INBOX) == ("SOMEDAY  ·  1 of 3", "TIME-LIMITED  ·  1 of 2")
+    assert lane_headers(window, Stage.DONE) == ("COMPLETED  ·  1 of 1", None)
+    assert window.sidebar.clear_button.isEnabled()
+    assert window.sidebar.clear_button.text() == "✕ Clear (2)"
+
+
+def test_clicking_a_selected_tag_unselects_it(qtbot, window, tagged):
+    window.refresh()
+
+    click_bubble(qtbot, window, "home")
+    click_bubble(qtbot, window, "home")
+
+    assert len(card_titles(window, Stage.INBOX)) == 5
+    assert lane_headers(window, Stage.INBOX) == ("SOMEDAY  ·  3", "TIME-LIMITED  ·  2")
+
+
+@pytest.mark.parametrize("how", ["clear", "everything"])
+def test_clear_and_everything_unselect_all_tags(qtbot, window, tagged, how):
+    window.refresh()
+    click_bubble(qtbot, window, "home")
+
+    if how == "clear":
+        window.sidebar.clear_button.click()
+    else:
+        views = window.sidebar.views
+        qtbot.mouseClick(views.viewport(), Qt.MouseButton.LeftButton, pos=views.visualItemRect(views.item(0)).center())
+
+    assert all(not selected for _, selected in bubbles(window).values())
+    assert len(card_titles(window, Stage.INBOX)) == 5
+    assert not window.sidebar.clear_button.isEnabled()
+
+
+def test_a_filtered_card_keeps_the_shade_it_has_on_the_full_board(qtbot, window, tagged):
+    window.refresh()
+    QApplication.processEvents()
+    before = {c.task.title: c.fill() for c in column_cards(window, Stage.INBOX)}
+
+    click_bubble(qtbot, window, "client-x")
+    click_bubble(qtbot, window, "home")
+
+    after = {c.task.title: c.fill() for c in column_cards(window, Stage.INBOX)}
+    assert after == {title: before[title] for title in after}
+    assert set(after) == {"Demo", "Plan", "Code"}
+
+
+def test_quick_adding_a_task_clears_the_tag_filter(qtbot, window, tagged):
+    window.refresh()
+    click_bubble(qtbot, window, "home")
+
+    qtbot.keyClicks(window.board_view.quick_add, "Buy milk")
+    qtbot.keyClick(window.board_view.quick_add, Qt.Key.Key_Return)
+
+    assert "4. Buy milk" in card_titles(window, Stage.INBOX)
+    assert not window.sidebar.clear_button.isEnabled()
+
+
+def test_creating_a_task_in_the_dialog_clears_the_tag_filter_even_if_it_matches(qtbot, window, tagged, monkeypatch):
+    window.refresh()
+    click_bubble(qtbot, window, "home")
+
+    def create(dialog):
+        dialog.title_edit.setText("Water plants")
+        dialog.details_editor.set_markdown("#home")
+        dialog.save_button.click()
+        return dialog.result()
+
+    monkeypatch.setattr(TaskDialog, "exec", create)
+    window.new_task()
+
+    assert len(card_titles(window, Stage.INBOX)) == 6
+    assert not window.sidebar.clear_button.isEnabled()
+
+
+def test_a_task_edited_out_of_the_filter_just_disappears(qtbot, window, tagged, monkeypatch):
+    window.refresh()
+    click_bubble(qtbot, window, "home")
+    code = next(c.task for c in column_cards(window, Stage.INBOX) if c.task.title == "Code")
+
+    def drop_home(dialog):
+        dialog.details_editor.set_markdown("#work")
+        dialog.save_button.click()
+        return dialog.result()
+
+    monkeypatch.setattr(TaskDialog, "exec", drop_home)
+    window.open_task(code.id)
+
+    assert card_titles(window, Stage.INBOX) == ["1. Plan"]
+    assert window.sidebar.clear_button.text() == "✕ Clear (1)"
+
+
+def test_a_selected_tag_that_no_task_has_any_more_drops_out_of_the_filter(qtbot, window, tagged, monkeypatch):
+    window.refresh()
+    click_bubble(qtbot, window, "client-x")
+    demo = column_cards(window, Stage.INBOX)[0].task
+
+    def drop_tag(dialog):
+        dialog.details_editor.set_markdown("No tags now")
+        dialog.save_button.click()
+        return dialog.result()
+
+    monkeypatch.setattr(TaskDialog, "exec", drop_tag)
+    window.open_task(demo.id)
+
+    assert "client-x" not in bubbles(window)
+    assert not window.sidebar.clear_button.isEnabled()
+    assert len(card_titles(window, Stage.INBOX)) == 5
+
+
+def test_while_filtered_a_drop_in_its_own_stage_is_refused_with_a_hint(qtbot, window, board):
+    board.add_task("A", details="#x")
+    board.add_task("B")
+    c = board.add_task("C", details="#x")
+    window.refresh()
+    click_bubble(qtbot, window, "x")
+    column = window.board_view.column_widget(Stage.INBOX)
+    mime = encode_drag(board.task(c.id))
+
+    column.dragEnterEvent(
+        QDragEnterEvent(QPointF(20, 60), Qt.DropAction.MoveAction, mime, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
+    )
+    hint = column.drop_hint()
+    drop_on_column(window, board.task(c.id), Stage.INBOX, at_top=True)
+
+    assert hint == "Clear the Tag filter to reorder"
+    assert [t.title for t in board.lane(Stage.INBOX, LaneKind.SOMEDAY)] == ["A", "B", "C"]
+
+
+def test_while_filtered_a_someday_task_dropped_in_another_stage_lands_at_the_bottom(qtbot, window, board):
+    a = board.add_task("A", details="#x")
+    for title in ("P1", "P2"):
+        board.move_task(board.add_task(title).id, Stage.IN_PROCESS)
+    window.refresh()
+    click_bubble(qtbot, window, "x")
+
+    drop_on_column(window, board.task(a.id), Stage.IN_PROCESS, at_top=True)
+
+    assert [(t.title, t.priority) for t in board.lane(Stage.IN_PROCESS, LaneKind.SOMEDAY)] == [("P1", 1), ("P2", 2), ("A", 3)]
+
+
+def underlined_words(editor):
+    """The text the editor draws underlined, block by block (links excluded)."""
+    words = []
+    block = editor.text_edit.document().firstBlock()
+    while block.isValid():
+        for extra in block.layout().formats():
+            if extra.format.fontUnderline():
+                words.append(block.text()[extra.start : extra.start + extra.length])
+        block = block.next()
+    return words
+
+
+def test_details_editor_underlines_tags_but_not_in_code_or_usable_data(qtbot, board):
+    task = board.add_task("T", details="Call #client-x, not issue#12 or `#define`\n\n#home", usable_data="#bank")
+    dialog = TaskDialog(board, task)
+    qtbot.addWidget(dialog)
+
+    dialog.details_editor.text_edit.moveCursor(QTextCursor.MoveOperation.End)
+    qtbot.keyClicks(dialog.details_editor.text_edit, " #new")
+
+    assert underlined_words(dialog.details_editor) == ["#client-x", "#home", "#new"]
+    assert underlined_words(dialog.usable_data_editor) == []
+
+
+def suggestions(editor):
+    popup = editor.tag_popup
+    if popup is None or popup.isHidden():
+        return []
+    return [popup.item(i).text() for i in range(popup.count())]
+
+
+@pytest.fixture
+def tag_dialog(qtbot, board):
+    board.add_task("A", details="#work #weekly #network #home")
+    board.add_task("B", details="#work")
+    dialog = TaskDialog(board)
+    qtbot.addWidget(dialog)
+    return dialog
+
+
+def test_typing_a_hash_and_a_letter_suggests_existing_tags(qtbot, tag_dialog):
+    editor = tag_dialog.details_editor
+
+    qtbot.keyClicks(editor.text_edit, "Call #")
+    nothing_yet = suggestions(editor)
+    qtbot.keyClicks(editor.text_edit, "w")
+
+    assert nothing_yet == []
+    assert suggestions(editor) == ["#work", "#weekly", "#network"]
+
+
+def test_enter_inserts_the_chosen_suggestion(qtbot, tag_dialog):
+    editor = tag_dialog.details_editor
+    qtbot.keyClicks(editor.text_edit, "Call #wk")
+
+    qtbot.keyClick(editor.text_edit, Qt.Key.Key_Down)
+    qtbot.keyClick(editor.text_edit, Qt.Key.Key_Return)
+
+    assert editor.text_edit.toPlainText() == "Call #network "
+    assert suggestions(editor) == []
+
+
+def test_tab_inserts_the_top_suggestion(qtbot, tag_dialog):
+    editor = tag_dialog.details_editor
+    qtbot.keyClicks(editor.text_edit, "#ho")
+
+    qtbot.keyClick(editor.text_edit, Qt.Key.Key_Tab)
+
+    assert editor.text_edit.toPlainText() == "#home "
+
+
+@pytest.mark.parametrize("key", [Qt.Key.Key_Escape, Qt.Key.Key_Space])
+def test_escape_or_a_space_closes_the_suggestions(qtbot, tag_dialog, key):
+    editor = tag_dialog.details_editor
+    qtbot.keyClicks(editor.text_edit, "#wo")
+
+    qtbot.keyClick(editor.text_edit, key)
+
+    assert suggestions(editor) == []
+    assert editor.text_edit.toPlainText().startswith("#wo")
+
+
+def test_new_tags_get_no_suggestions_and_usable_data_never_does(qtbot, tag_dialog):
+    qtbot.keyClicks(tag_dialog.details_editor.text_edit, "#zebra")
+    qtbot.keyClicks(tag_dialog.usable_data_editor.text_edit, "#wo")
+
+    assert suggestions(tag_dialog.details_editor) == []
+    assert suggestions(tag_dialog.usable_data_editor) == []
+
+
+def test_redrawing_the_tags_leaves_only_the_current_bubbles_in_the_sidebar(qtbot, window, tagged):
+    window.refresh()
+
+    click_bubble(qtbot, window, "home")
+    click_bubble(qtbot, window, "work")
+
+    from unlimilist.ui.sidebar import TagBubble
+
+    assert len(window.sidebar.findChildren(TagBubble)) == 3
+
+
+def card_texts(card):
+    return " ".join(label.text() for label in card.findChildren(QLabel))
+
+
+def test_cards_show_no_details(window, board):
+    board.add_task("Groceries", details="Oat milk and bread\n\n- [ ] eggs")
+    window.board_view.refresh()
+
+    card = column_cards(window, Stage.INBOX)[0]
+
+    assert "Oat" not in card_texts(card) and "eggs" not in card_texts(card)
+    assert card.meta_label.isHidden()  # Someday cards have no dates line
+
+
+@pytest.mark.parametrize(
+    ("details", "chip"),
+    [
+        ("#client-x #home", "#client-x +1"),  # exactly 12 characters
+        ("#reading-list", "#reading-li…"),
+        ("#reading-list #a #b", "#reading… +2"),
+    ],
+)
+def test_the_tag_chip_is_cut_to_12_characters(window, board, details, chip):
+    board.add_task("T", details=details)
+    window.board_view.refresh()
+
+    text = column_cards(window, Stage.INBOX)[0].tag_chip.text()
+
+    assert (text, len(text)) == (chip, 12)
+
+
+LONG_TITLE = " ".join(["Prepare the quarterly report for the board meeting with every number and chart"] * 5)
+
+
+@pytest.mark.parametrize(("deadline", "title_lines"), [(None, 4), (date(2026, 11, 1), 3)])
+def test_a_long_title_wraps_over_every_line_of_the_card(window, board, deadline, title_lines):
+    board.add_task(LONG_TITLE, details="#work", deadline=deadline)
+    window.board_view.refresh()
+
+    lines = column_cards(window, Stage.INBOX)[0].title_label.text().split("\n")
+
+    assert len(lines) == title_lines
+    assert lines[-1].endswith("…")
+
+
+def test_the_tag_chip_shares_only_the_first_title_line(window, board):
+    board.add_task(LONG_TITLE, details="#work")
+    board.add_task(LONG_TITLE)
+    window.board_view.refresh()
+    QApplication.processEvents()
+
+    tagged, plain = column_cards(window, Stage.INBOX)
+    tagged_lines = tagged.title_label.text().split("\n")
+    plain_lines = plain.title_label.text().split("\n")
+    title_top = tagged.title_label.mapTo(tagged, QPoint(0, 0)).y()
+    line_height = tagged.title_label.fontMetrics().height()
+
+    assert len(tagged_lines[0]) < len(plain_lines[0])  # the first line makes room for the chip
+    assert tagged.title_label.width() == plain.title_label.width()  # later lines get the card's full width
+    assert title_top <= tagged.tag_chip.geometry().center().y() <= title_top + line_height  # on the first line
+
+
+def test_the_suggestions_belong_to_the_dialog_window_so_they_show_above_it(qtbot, tag_dialog):
+    # The Task dialog is modal, and macOS raises a modal window above free-floating ones. A window with the
+    # dialog as its transient parent is kept at the dialog's level, so the suggestions stay on top of it.
+    tag_dialog.show()
+    qtbot.waitExposed(tag_dialog)
+
+    qtbot.keyClicks(tag_dialog.details_editor.text_edit, "#w")
+
+    popup = tag_dialog.details_editor.tag_popup
+    assert popup.isVisible()
+    assert popup.windowHandle().transientParent() is tag_dialog.windowHandle()

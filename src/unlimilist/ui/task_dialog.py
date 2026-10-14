@@ -128,7 +128,7 @@ class TaskDialog(QDialog):
         self.title_edit = QLineEdit()
         self.title_edit.setObjectName("titleEdit")
         self.title_edit.setPlaceholderText("What needs doing?")
-        self.details_editor = RichTextEditor(subtasks=True)
+        self.details_editor = RichTextEditor(subtasks=True, suggest_tags=board.suggest_tags)
         self.usable_data_editor = RichTextEditor("Links, snippets, reference info…")
         self.due_date_field = DateField()
         self.deadline_field = DateField()

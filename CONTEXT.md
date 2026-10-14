@@ -46,6 +46,14 @@ _Avoid_: Type, category, kind
 A checkbox item in a Task's Details, either finished (checked) or unfinished. Subtasks normally form one list at the start of the Details, before any other text, and a new Subtask goes at the end of that list. A checkbox found further down still counts as a Subtask. A Task with unfinished Subtasks cannot enter Done, but once in Done its Subtasks can be edited freely.
 _Avoid_: Checklist item, todo, child task
 
+**Tag**:
+A one-word label written in a Task's Details as #word: letters, digits, - and _, starting with a letter. The # has to start a word, and a # inside code or a link doesn't count. A Task has every Tag that appears in its Details, and its first Tag is the first one written. Tags ignore case, so #Work and #work are the same Tag.
+_Avoid_: Label, hashtag, category
+
+**Tag filter**:
+The set of Tags selected in the sidebar. When it isn't empty, the Board shows only Tasks that have at least one selected Tag. It is cleared by Clear, by choosing Everything, by creating a Task, and when the app starts. A Tag that no Task has any more drops out of it.
+_Avoid_: Tag search, tag query
+
 **Usable data**:
 Optional formatted text holding material that helps with doing the Task, such as links, snippets or reference info.
 _Avoid_: Reference, attachments, resources

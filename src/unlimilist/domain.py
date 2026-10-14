@@ -1,6 +1,7 @@
 """Core domain types. See CONTEXT.md for the vocabulary."""
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
@@ -54,6 +55,21 @@ class UnfinishedSubtasks(ValueError):
 # A Markdown task-list item, e.g. "- [ ] Test" or "1. [x] Build".
 _SUBTASK = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\[([ xX])\]", re.MULTILINE)
 
+# Code and links never hold Tags: fenced blocks, `code spans`, [text](url) and <autolinks>.
+_NOT_TAG_TEXT = re.compile(r"```.*?```|`[^`\n]*`|!?\[[^\]\n]*\]\([^)\n]*\)|<[^>\s]+>", re.DOTALL)
+# A Tag: # at the start of a word (line start, a space or an opening bracket), then a letter,
+# then letters, digits, - or _. Qt writes a # that starts a line as \#, so that counts too.
+TAG = re.compile(r"(?<![^\s(\[{])\\?#([^\W\d_][\w-]*)")
+
+
+def find_tags(text: str) -> tuple[str, ...]:
+    """The Tags in `text`, each once, in the order first written and with that first spelling."""
+    found: dict[str, str] = {}
+    for match in TAG.finditer(_NOT_TAG_TEXT.sub(" ", text)):
+        name = match.group(1).rstrip("-")
+        found.setdefault(name.casefold(), name)
+    return tuple(found.values())
+
 
 @dataclass(frozen=True)
 class Task:
@@ -79,6 +95,15 @@ class Task:
     def earliest_date(self) -> date | None:
         dates = [d for d in (self.due_date, self.deadline) if d]
         return min(dates, default=None)
+
+    @property
+    def tags(self) -> tuple[str, ...]:
+        return find_tags(self.details)
+
+    def matches_tag_filter(self, tag_filter: Iterable[str]) -> bool:
+        """Whether the Task shows under a Tag filter: it has any selected Tag, or nothing is selected."""
+        keys = {key.casefold() for key in tag_filter}
+        return not keys or any(name.casefold() in keys for name in self.tags)
 
     @property
     def has_subtasks(self) -> bool:

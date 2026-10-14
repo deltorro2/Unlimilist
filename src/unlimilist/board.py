@@ -40,6 +40,10 @@ class Board:
         self._store = store or InMemoryStore()
         self._clock = clock
         self._tasks: dict[str, Task] = {t.id: t for t in self._store.load_all()}
+        # Tag key (case-folded) -> ids of the Tasks that have it; built once here, then kept up to date.
+        self._tag_index: dict[str, set[str]] = {}
+        for task in self._tasks.values():
+            self._index_tags(task)
         for stage in (Stage.INBOX, Stage.IN_PROCESS):
             self._renumber(stage, LaneKind.SOMEDAY)
 
@@ -133,6 +137,7 @@ class Board:
         if self._tasks[task_id].stage == Stage.IN_PROCESS:
             raise DeleteRefused("Move the Task out of In Process to delete it")
         task = self._tasks.pop(task_id)
+        self._unindex_tags(task)
         self._store.delete(task_id)
         self._renumber(task.stage, task.kind)
 
@@ -151,6 +156,28 @@ class Board:
         if task.deadline and task.deadline <= today + timedelta(days=1):
             return Urgency.DUE_SOON
         return Urgency.NONE
+
+    def tags(self) -> list[tuple[str, int]]:
+        """Every Tag on the Board, A to Z, with how many Tasks have it. A Tag is spelled as first used."""
+        listed = []
+        for key, task_ids in self._tag_index.items():
+            first = min((self._tasks[i] for i in task_ids), key=lambda t: (t.created_at, t.id))
+            spelling = next(name for name in first.tags if name.casefold() == key)
+            listed.append((spelling, len(task_ids)))
+        return sorted(listed, key=lambda item: item[0].casefold())
+
+    def suggest_tags(self, typed: str, limit: int = 8) -> list[str]:
+        """Tags for what was typed after #: those starting with it first, then those containing its
+        letters in order (fuzzy); within each group the most used first, then A to Z."""
+        query = typed.casefold()
+        prefix, fuzzy = [], []
+        for name, count in self.tags():
+            if name.casefold().startswith(query):
+                prefix.append((name, count))
+            elif _contains_in_order(name.casefold(), query):
+                fuzzy.append((name, count))
+        ranked = [name for group in (prefix, fuzzy) for name, _ in sorted(group, key=lambda item: -item[1])]
+        return ranked[:limit]
 
     def lane(self, stage: Stage, kind: LaneKind | None = None) -> list[Task]:
         if stage == Stage.DONE:
@@ -186,6 +213,26 @@ class Board:
             self._put(replace(t, priority=rank))
 
     def _put(self, task: Task) -> None:
-        if self._tasks.get(task.id) != task:
+        old = self._tasks.get(task.id)
+        if old != task:
+            if old is not None:
+                self._unindex_tags(old)
             self._tasks[task.id] = task
+            self._index_tags(task)
             self._store.save(task)
+
+    def _index_tags(self, task: Task) -> None:
+        for name in task.tags:
+            self._tag_index.setdefault(name.casefold(), set()).add(task.id)
+
+    def _unindex_tags(self, task: Task) -> None:
+        for name in task.tags:
+            key = name.casefold()
+            self._tag_index[key].discard(task.id)
+            if not self._tag_index[key]:
+                del self._tag_index[key]
+
+
+def _contains_in_order(text: str, letters: str) -> bool:
+    remaining = iter(text)
+    return all(letter in remaining for letter in letters)

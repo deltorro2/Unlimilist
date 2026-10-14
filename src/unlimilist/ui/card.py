@@ -12,8 +12,6 @@ from PySide6.QtGui import (
     QPainter,
     QPen,
     QPixmap,
-    QTextBlockFormat,
-    QTextDocument,
     QTextLayout,
 )
 from PySide6.QtWidgets import (
@@ -29,12 +27,13 @@ from PySide6.QtWidgets import (
 from unlimilist.domain import LaneKind, Stage, Task, Urgency
 from unlimilist.ui.date_field import format_date
 from unlimilist.ui.icons import ACTIVITY_LABELS, activity_pixmap
-from unlimilist.ui.styling import LATE, LATE_BORDER, URGENCY_COLOURS, text_colour
+from unlimilist.ui.styling import LATE, LATE_BORDER, TAG_BACKGROUND, TAG_INK, URGENCY_COLOURS, text_colour
 
 TASK_MIME_TYPE = "application/x-unlimilist-task"
 _STRIPE = 5
 _MAX_LINES = 4
-_MAX_TITLE_LINES = 2
+_MAX_CHIP_CHARS = 12
+_CHIP_GAP = 6
 _STATUS_SIZE = 12
 _BADGE_SIZE = 14
 _BADGE_GAP = 6
@@ -63,18 +62,17 @@ def decode_drag(mime: QMimeData) -> Dragged | None:
     return Dragged(task_id, LaneKind(kind), int(unfinished))
 
 
-def plain_text(markdown: str) -> str:
-    """Markdown flattened to one line of plain text, for previews; Subtasks are left out."""
-    document = QTextDocument()
-    document.setMarkdown(markdown)
-    parts = []
-    block = document.firstBlock()
-    while block.isValid():
-        is_subtask = block.textList() and block.blockFormat().marker() != QTextBlockFormat.MarkerType.NoMarker
-        if not is_subtask:
-            parts.append(block.text())
-        block = block.next()
-    return " ".join(" ".join(parts).split())
+def tag_chip_text(task: Task) -> str:
+    """"#first" or "#first +N", at most 12 characters: a longer Tag is cut with "…" and keeps its "+N".
+    Empty when the Task has no Tags."""
+    if not task.tags:
+        return ""
+    more = f" +{len(task.tags) - 1}" if len(task.tags) > 1 else ""
+    name = f"#{task.tags[0]}"
+    room = _MAX_CHIP_CHARS - len(more)
+    if len(name) > room:
+        name = name[: room - 1] + "…"
+    return name + more
 
 
 def status_fill(task: Task) -> str:
@@ -105,10 +103,14 @@ def status_pixmap(fill: str, colour: QColor, size: int = _STATUS_SIZE) -> QPixma
     return image
 
 
-def wrap_lines(text: str, font: QFont, width: int, max_lines: int) -> list[str]:
-    """`text` word-wrapped to `width`, at most `max_lines` lines, the last one elided with '…' if cut."""
+def wrap_lines(text: str, font: QFont, width: int, max_lines: int, first_width: int | None = None) -> list[str]:
+    """`text` word-wrapped to `width`, at most `max_lines` lines, the last one elided with '…' if cut.
+
+    `first_width`, if given, is the width of the first line only.
+    """
     if not text or width <= 0 or max_lines <= 0:
         return []
+    widths = [first_width if first_width is not None else width] + [width] * (max_lines - 1)
     metrics = QFontMetrics(font)
     layout = QTextLayout(text, font)
     layout.beginLayout()
@@ -117,13 +119,13 @@ def wrap_lines(text: str, font: QFont, width: int, max_lines: int) -> list[str]:
         line = layout.createLine()
         if not line.isValid():
             break
-        line.setLineWidth(width)
+        line.setLineWidth(max(widths[min(len(spans), max_lines - 1)], 1))
         spans.append((line.textStart(), line.textLength()))
     layout.endLayout()
     lines = [text[start : start + length].rstrip() for start, length in spans[:max_lines]]
     if len(spans) > max_lines:
         rest = text[spans[max_lines - 1][0] :]
-        lines[-1] = metrics.elidedText(rest, Qt.TextElideMode.ElideRight, width)
+        lines[-1] = metrics.elidedText(rest, Qt.TextElideMode.ElideRight, widths[max_lines - 1])
     return lines
 
 
@@ -137,7 +139,6 @@ class CardWidget(QFrame):
         self._fill = fill
         self._press_pos: QPoint | None = None
         self._done = task.stage == Stage.DONE
-        self._details = "" if self._done else plain_text(task.details)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
 
         ink = text_colour(fill)
@@ -175,18 +176,18 @@ class CardWidget(QFrame):
         self.activity_badge.setHidden(self._done)
         self.title_label.setStyleSheet(f"color: {ink.name()}; background: transparent;")
 
-        self.usable_data_icon = QLabel("📎")
-        self.usable_data_icon.setToolTip("Has Usable data")
-        self.usable_data_icon.setStyleSheet("background: transparent; font-size: 11px;")
-        self.usable_data_icon.setHidden(not task.usable_data or self._done)
-
-        self.details_label = QLabel()
-        details_font = self.details_label.font()
-        details_font.setPointSizeF(details_font.pointSizeF() - 1)
-        self.details_label.setFont(details_font)
-        self.details_label.setStyleSheet(
-            f"color: {muted.name(QColor.NameFormat.HexArgb)}; background: transparent;"
+        # The first Tag in the top-right corner, with "+N" for the rest. It floats over the first title line
+        # instead of taking a column, so only that line makes room for it.
+        self._title_line = title_line
+        self.tag_chip = QLabel(tag_chip_text(task), self)
+        self.tag_chip.setObjectName("tagChip")
+        self.tag_chip.setToolTip(" ".join(f"#{name}" for name in task.tags))
+        self.tag_chip.setStyleSheet(
+            f"background: {TAG_BACKGROUND.name()}; color: {TAG_INK.name()}; border: 1px solid rgba(0, 0, 0, 0.12);"
+            " border-radius: 7px; padding: 0px 6px; font-size: 11px; font-weight: 600;"
         )
+        self.tag_chip.adjustSize()
+        self.tag_chip.setHidden(not task.tags)
 
         self.meta_label = QLabel(self._meta_text())
         meta_font = self.meta_label.font()
@@ -196,7 +197,7 @@ class CardWidget(QFrame):
         self.meta_label.setHidden(not self.meta_label.text())
 
         # Text is wrapped and cut to the card's width, so the labels must not dictate a width.
-        for label in (self.title_label, self.details_label, self.meta_label):
+        for label in (self.title_label, self.meta_label):
             label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             label.setMinimumWidth(1)
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
@@ -207,13 +208,11 @@ class CardWidget(QFrame):
         top.addWidget(self.status_icon, 0, Qt.AlignmentFlag.AlignTop)
         top.addSpacing(2)
         top.addWidget(self.title_label, 1)
-        top.addWidget(self.usable_data_icon, 0, Qt.AlignmentFlag.AlignTop)
 
         content = QVBoxLayout()
         content.setContentsMargins(0, 0, 0, 0)
         content.setSpacing(2)
         content.addLayout(top)
-        content.addWidget(self.details_label)
         content.addWidget(self.meta_label)
 
         layout = QHBoxLayout(self)
@@ -229,6 +228,10 @@ class CardWidget(QFrame):
         shadow.setColor(QColor(0, 0, 0, 85))
         self.setGraphicsEffect(shadow)
         self._fit_text()
+
+    def fill(self) -> str:
+        """The card's base colour, as #rrggbb."""
+        return self._fill.name()
 
     def _meta_text(self) -> str:
         if self._done:
@@ -251,22 +254,22 @@ class CardWidget(QFrame):
         return self.task.title
 
     def _fit_text(self) -> None:
-        """Title (up to 2 lines), then the Details preview, then dates: 4 lines at most."""
+        """The title wraps over every line the card has (4, less one for a dates line; Done cards keep one),
+        its first line making room for the Tag chip."""
         margins = self.layout().contentsMargins()
-        icon = _STATUS_SIZE + 6
-        icon += 0 if self.usable_data_icon.isHidden() else self.usable_data_icon.sizeHint().width() + 4
         badge = 0 if self._done else _BADGE_SIZE + _BADGE_GAP
-        width = max(self.width() - margins.left() - margins.right() - badge, 40)
+        content_width = max(self.width() - margins.left() - margins.right() - badge, 40)
+        width = content_width - (_STATUS_SIZE + 6)
+        chip = 0 if self.tag_chip.isHidden() else self.tag_chip.width() + _CHIP_GAP
+        max_lines = 1 if self._done else _MAX_LINES - (0 if self.meta_label.isHidden() else 1)
 
-        title_lines = wrap_lines(
-            self._title_text(), self.title_label.font(), width - icon, 1 if self._done else _MAX_TITLE_LINES
-        )
+        title_lines = wrap_lines(self._title_text(), self.title_label.font(), width, max_lines, width - chip)
         self.title_label.setText("\n".join(title_lines))
-
-        room = _MAX_LINES - len(title_lines) - (0 if self.meta_label.isHidden() or self._done else 1)
-        details_lines = wrap_lines(self._details, self.details_label.font(), width, room)
-        self.details_label.setText("\n".join(details_lines))
-        self.details_label.setHidden(not details_lines)
+        self.tag_chip.move(
+            self.width() - margins.right() - self.tag_chip.width(),
+            margins.top() + (self._title_line - self.tag_chip.height()) // 2,
+        )
+        self.tag_chip.raise_()
         self.updateGeometry()  # the line count, and so the height, may have changed
 
     def resizeEvent(self, event):

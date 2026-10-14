@@ -14,12 +14,14 @@ _STRETCH = {Stage.INBOX: 5, Stage.IN_PROCESS: 5, Stage.DONE: 3}
 
 class BoardView(QWidget):
     cardClicked = Signal(str)
+    taskAdded = Signal()
     taskDropped = Signal(str, object, object, int, QPoint)
 
     def __init__(self, board: Board, parent=None):
         super().__init__(parent)
         self._board = board
         self._columns: dict[Stage, ColumnWidget] = {}
+        self._tag_filter: frozenset[str] = frozenset()
 
         self.quick_add = QLineEdit()
         self.quick_add.setObjectName("quickAdd")
@@ -40,10 +42,16 @@ class BoardView(QWidget):
     def column_widget(self, stage: Stage) -> ColumnWidget:
         return self._columns[stage]
 
+    def set_tag_filter(self, tag_filter: frozenset[str]) -> None:
+        """Show only Tasks with any of these Tags (case-folded keys); empty shows every Task."""
+        self._tag_filter = tag_filter
+        self.refresh()
+
     def refresh(self) -> None:
         for stage, column in self._columns.items():
             tasks = self._board.column(stage)
-            column.set_tasks(tasks, [self._board.urgency(t.id) for t in tasks])
+            shown = {t.id for t in tasks if t.matches_tag_filter(self._tag_filter)} if self._tag_filter else None
+            column.set_tasks(tasks, [self._board.urgency(t.id) for t in tasks], shown)
 
     def _quick_add(self) -> None:
         title = self.quick_add.text().strip()
@@ -52,3 +60,4 @@ class BoardView(QWidget):
         self._board.add_task(title)
         self.quick_add.clear()
         self.refresh()
+        self.taskAdded.emit()

@@ -20,6 +20,10 @@ URGENCY_COLOURS = {
 LATE = (Urgency.OVERDUE, Urgency.START_PASSED)
 LATE_BORDER = QColor("#E53935")
 
+# Every Tag looks the same on every card: dark blue on white.
+TAG_INK = QColor("#1A3D8F")
+TAG_BACKGROUND = QColor("#FFFFFF")
+
 
 def card_fill(stage: Stage, kind: LaneKind | None, index: int, count: int) -> QColor:
     """Fill colour for the card at `index` (0 = top) of a Lane holding `count` cards."""

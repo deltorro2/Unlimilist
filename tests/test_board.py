@@ -376,3 +376,75 @@ def test_changing_the_activity_keeps_the_task_in_place(board):
 
     assert board.task(b.id).activity == Activity.MEETING
     assert titles(board.lane(Stage.INBOX, LaneKind.SOMEDAY)) == ["A", "B"]
+
+
+def test_a_task_has_the_tags_in_its_details_in_the_order_first_written(board):
+    task = board.add_task("T", details="Call #Client-X about #invoice_2\n\n- [ ] send #INVOICE_2 and #client-x again")
+
+    assert task.tags == ("Client-X", "invoice_2")
+
+
+@pytest.mark.parametrize(
+    ("details", "tags"),
+    [
+        ("\\#home is escaped at the start of a line", ("home",)),
+        ("(see #work), then #done.", ("work", "done")),
+        ("https://site.com/page#section and issue#12", ()),
+        ("`#define` in code and [#link](https://a.com/#frag)", ()),
+        ("```\n#fenced\n```\n\nafter #real", ("real",)),
+        ("# Heading, #1 and #-dash are not tags", ()),
+    ],
+)
+def test_a_hash_starts_a_tag_only_at_the_start_of_a_word_and_outside_code_and_links(board, details, tags):
+    assert board.add_task("T", details=details).tags == tags
+
+
+def test_tags_are_not_read_from_the_title_or_usable_data(board):
+    assert board.add_task("Pay #rent", usable_data="#bank").tags == ()
+
+
+def test_board_lists_its_tags_a_to_z_with_how_many_tasks_have_each(board):
+    board.add_task("A", details="#Work and #home")
+    board.add_task("B", details="#work")
+    done = board.add_task("C", details="#zoo #work")
+    board.move_task(done.id, Stage.DONE)
+
+    assert board.tags() == [("home", 1), ("Work", 3), ("zoo", 1)]  # spelled as first used
+
+
+def test_board_tags_follow_edits_and_deletes(board):
+    a = board.add_task("A", details="#home")
+    b = board.add_task("B", details="#home #car")
+
+    board.edit_task(a.id, details="#garden")
+    board.delete_task(b.id)
+
+    assert board.tags() == [("garden", 1)]
+
+
+def test_tags_already_in_task_files_are_listed_when_the_board_opens():
+    store = InMemoryStore([Task(id="t1", title="T", stage=Stage.INBOX, created_at=datetime(2026, 10, 1), details="#home")])
+
+    assert Board(store, clock=FakeClock()).tags() == [("home", 1)]
+
+
+def test_a_tag_filter_matches_tasks_with_any_selected_tag_ignoring_case(board):
+    work = board.add_task("A", details="#Work")
+    home = board.add_task("B", details="#home #car")
+    untagged = board.add_task("C")
+
+    shown = [t.title for t in (work, home, untagged) if t.matches_tag_filter({"work", "car"})]
+
+    assert shown == ["A", "B"]
+    assert untagged.matches_tag_filter(set())  # an empty filter shows everything
+
+
+def test_tag_suggestions_put_prefix_matches_first_then_fuzzy_ones_most_used_first(board):
+    board.add_task("A", details="#work #wiki #weekly #network")
+    board.add_task("B", details="#work #wiki")
+    board.add_task("C", details="#work #home")
+
+    assert board.suggest_tags("w") == ["work", "wiki", "weekly", "network"]
+    assert board.suggest_tags("wk") == ["work", "wiki", "network", "weekly"]  # equally used: A to Z
+    assert board.suggest_tags("WE") == ["weekly"]
+    assert board.suggest_tags("xyz") == []

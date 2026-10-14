@@ -21,10 +21,22 @@ QLabel#appTitle { font-size: 20px; font-weight: 700; color: #1B1B1F; }
 QLabel#versionBadge { background: transparent; border: 1.5px solid #E53935; border-radius: 13px;
     color: #E53935; font-size: 10px; font-weight: 700; }
 
-QListWidget#sidebar { background: #ECEEF3; border: none; border-right: 1px solid #DDE0E7; padding: 10px 6px; font-size: 14px; color: #1B1B1F; }
+QFrame#sidebarPane { background: #ECEEF3; border: none; border-right: 1px solid #DDE0E7; }
+QListWidget#sidebar { background: #ECEEF3; border: none; padding: 10px 6px 4px 6px; font-size: 14px; color: #1B1B1F; }
 QListWidget#sidebar::item { padding: 8px 10px; border-radius: 6px; }
 QListWidget#sidebar::item:selected { background: #D7E3FC; color: #1A3D8F; font-weight: 600; }
 QListWidget#sidebar::item:disabled { color: #A0A4AE; font-style: italic; }
+QFrame#tagSeparator { background: #D3D7E0; margin: 0 12px; }
+QLabel#tagsHeader { color: #6B7080; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+QPushButton#clearTags { background: transparent; border: none; color: #2F6FED; font-size: 12px; font-weight: 600; padding: 2px 4px; }
+QPushButton#clearTags:disabled { color: #B3B8C4; }
+QScrollArea#tagScroll, QWidget#tagCloud { background: transparent; border: none; }
+QLabel#tagBubble { background: #FFFFFF; border: 1px solid #D3D7E0; border-radius: 9px; padding: 2px 8px; font-size: 12px; color: #2A2E37; }
+QLabel#tagBubble:hover { border: 1px solid #2F6FED; }
+QLabel#tagBubble[selected="true"] { background: #2F6FED; border: 1px solid #2F6FED; color: #FFFFFF; }
+QListWidget#tagPopup { background: #FFFFFF; border: 1px solid #D0D4DC; border-radius: 6px; padding: 3px; font-size: 13px; color: #1A3D8F; }
+QListWidget#tagPopup::item { padding: 3px 8px; border-radius: 4px; }
+QListWidget#tagPopup::item:selected { background: #D7E3FC; color: #1A3D8F; }
 
 QFrame#stage { background: #E8EAF0; border-radius: 10px; }
 QLabel#stageHeader { font-size: 16px; font-weight: 700; color: #22252B; padding: 2px 4px; }

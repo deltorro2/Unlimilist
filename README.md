@@ -27,6 +27,7 @@ Jira, Todoist and TickTick do a thousand things you'll never use. Trello does to
 
 ## What you get
 
+- 🔒 **Your data stays yours.** Every Task is a plain Markdown file on your Mac that you can read, back up or edit in any editor.
 - 🗂 **One Board, three Stages.** Inbox, In Process and Done. Drag a Task along as the work moves.
 - 📌 **Someday and deadline work, side by side.** Open-ended Tasks are ranked by your Priority on the left; dated Tasks are ordered by date on the right.
 - 🧭 **An order that thinks ahead.** The most urgent dated Task sits on top; later ones drift down among your Someday Tasks, a step for each month away, so nothing far off crowds today.
@@ -38,7 +39,6 @@ Jira, Todoist and TickTick do a thousand things you'll never use. Trello does to
 - 🧹 **Tidy up fast.** Select several Tasks and delete them in one go, or duplicate a Task to reuse it. Deleted files are kept, so nothing is lost by mistake.
 - 🗄 **Fold Done away.** A switch under Done folds it to a slim strip, so Inbox and In Process get the room; you can still drop Tasks on it to finish them.
 - 🔠 **Text at a size that suits you.** Pick one of five card font sizes in Settings (the gear, or ⌘,); the Board follows as you slide.
-- 🔒 **Your data stays yours.** Every Task is a plain Markdown file on your Mac that you can read, back up or edit in any editor.
 
 ### Tags: focus on one client, one project, one theme
 

@@ -34,8 +34,9 @@ Jira, Todoist and TickTick do a thousand things you'll never use. Trello does to
 - 🧾 **Context lives with the Task.** Rich-text Details for what the Task is, and Usable data for links, numbers and code snippets.
 - ✅ **Subtasks that mean it.** Checklists in the Details; a Task can't reach Done while any are open.
 - 🏷 **Tags with instant filtering.** Write `#client-x` anywhere in the Details; pick Tags in the sidebar to see just those Tasks. Autocomplete suggests the Tags you already use.
-- 📞 **Activities at a glance.** A badge on each card tells a call from a meeting, a coding session or a milestone.
+- 📞 **Activities at a glance.** A badge on each card tells a call from a meeting, a question to ask, a coding session or a milestone.
 - 🧹 **Tidy up fast.** Select several Tasks and delete them in one go, or duplicate a Task to reuse it. Deleted files are kept, so nothing is lost by mistake.
+- 🔠 **Text at a size that suits you.** Pick one of five card font sizes in Settings (the gear, or ⌘,); the Board follows as you slide.
 - 🔒 **Your data stays yours.** Every Task is a plain Markdown file on your Mac that you can read, back up or edit in any editor.
 
 ### Tags: focus on one client, one project, one theme
@@ -96,9 +97,11 @@ src/unlimilist/
   domain.py        Task, Stage, Activity, Tags, Subtasks: plain data and rules
   board.py         the Board: every rule for where a Task sits; no Qt
   store.py         one Markdown file per Task (load, save, delete)
+  settings.py      settings.json: the user's settings, such as the card font size
   app.py           startup, styles, the data folder
-  ui/              the Qt widgets: main window, Columns, cards, Task dialog, sidebar, loading card
-tests/             test_board.py (domain), test_ui.py, test_loading.py, test_delete_and_duplicate.py
+  ui/              the Qt widgets: main window, Columns, cards, Task dialog, Settings, sidebar, loading card
+tests/             test_board.py (domain), test_ui.py, test_settings.py, test_highlight.py, test_loading.py,
+                   test_delete_and_duplicate.py
 scripts/           build_app.sh, build_dmg.sh, make_test_tasks.py, readme_screenshots.py
 docs/adr/          architecture decision records
 CONTEXT.md         the glossary: the words the code and the UI use
@@ -150,7 +153,8 @@ Send the receipts #finance
 
 - The folder is read once, when the app starts. Hand edits are welcome while the app is closed; a broken file is skipped with a warning in the status bar.
 - A deleted Task's file is renamed to end in `-deleted` and never loaded again. Rename it back to restore the Task.
-- To back up, copy the folder.
+- Your settings, such as the card font size, are kept in `settings.json` next to the `tasks` folder. Delete it to go back to the defaults.
+- To back up, copy the `Unlimilist` folder.
 
 **Test data.** To fill the folder with 26 made-up Tasks that exercise every feature, beside your own Tasks, quit the app and run:
 

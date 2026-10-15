@@ -22,6 +22,7 @@ class Activity(Enum):
     """The kind of work a Task represents. The value names its icon and is what the Task file stores."""
 
     GENERAL_TASK = "general-task"
+    ASK = "ask"
     PHONE_CALL = "phone-call"
     MEETING = "meeting"
     DEVELOP_CODE = "develop-code"

@@ -23,8 +23,9 @@ from unlimilist.domain import Activity, Stage, Task  # noqa: E402
 from unlimilist.store import MarkdownTaskStore  # noqa: E402
 
 PREFIX = "manual-test-"
-GENERAL, CALL, MEETING, CODE, MILESTONE = (
+GENERAL, ASK, CALL, MEETING, CODE, MILESTONE = (
     Activity.GENERAL_TASK,
+    Activity.ASK,
     Activity.PHONE_CALL,
     Activity.MEETING,
     Activity.DEVELOP_CODE,
@@ -68,7 +69,7 @@ def test_tasks(today: date) -> list[dict]:
         ),
         dict(title="Call grandma", activity=CALL, details="Ask about the family recipes #family"),
         dict(title=LONG_TITLE, activity=MEETING, details="A long title wraps under the Tag chip. #work #client-x #reports"),
-        dict(title="Read a book", activity=GENERAL, details="A Task with no Tags shows no chip."),
+        dict(title="Ask Dana about the invoice", activity=ASK, details="An Ask Task: pink badge. No Tags, so no chip."),
         dict(
             title="Long Tag cut in the chip",
             activity=GENERAL,

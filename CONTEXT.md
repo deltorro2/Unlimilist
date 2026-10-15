@@ -10,7 +10,11 @@ _Avoid_: Todo, card, item
 
 **Board**:
 The Kanban view of Tasks, arranged into Stages and Lanes.
-_Avoid_: Kanban, view
+_Avoid_: Kanban, view, Dashboard
+
+**Card font size**:
+How large the text on the Board's cards is drawn: one of five sizes, from 1 (smallest) to 5 (largest), where 2 is the standard size. It can make cards taller but never wider. It is chosen in Settings, on the Board view tab, and kept between launches.
+_Avoid_: Zoom, dashboard font, text scale
 
 **Stage**:
 One of Inbox, In Process or Done, i.e. where a Task is in its life. The Board draws each Stage as a Column.
@@ -47,7 +51,7 @@ Optional formatted text that describes what the Task is.
 _Avoid_: Description, notes
 
 **Activity**:
-The kind of work a Task represents: General Task, Phone call, Meeting, Develop code or Milestone. Every Task has exactly one, and a new Task starts as General Task. It describes the work only and does not affect where the Task sits on the Board.
+The kind of work a Task represents: General Task, Ask, Phone call, Meeting, Develop or Milestone. Ask means getting an answer or information from someone, such as a question to a colleague, a client or support. Every Task has exactly one, and a new Task starts as General Task. It describes the work only and does not affect where the Task sits on the Board.
 _Avoid_: Type, category, kind
 
 **Subtask**:

@@ -8,6 +8,7 @@ from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
 from unlimilist.board import Board
+from unlimilist.settings import SettingsStore
 from unlimilist.ui.icons import app_icon
 from unlimilist.ui.main_window import MainWindow
 
@@ -20,6 +21,8 @@ QToolBar QToolButton#deleteTaskButton { background: #E53935; }
 QToolBar QToolButton#deleteTaskButton:hover { background: #C62828; }
 QToolBar QToolButton:disabled { background: #B8C6E6; }
 QToolBar QToolButton#deleteTaskButton:disabled { background: #EFB3B1; }
+QToolBar QToolButton#settingsButton, QToolBar QToolButton#settingsButton:disabled { background: transparent; padding: 4px; }
+QToolBar QToolButton#settingsButton:hover { background: #EEF0F4; }
 
 QFrame#sidebarPane { background: #ECEEF3; border: none; border-right: 1px solid #DDE0E7; }
 QListWidget#sidebar { background: #ECEEF3; border: none; padding: 10px 6px 4px 6px; font-size: 14px; color: #1B1B1F; }
@@ -57,6 +60,10 @@ QLineEdit#quickAdd { background: #FFFFFF; border: 1px solid #D0D4DC; border-radi
 QLineEdit#quickAdd:focus { border: 1px solid #2F6FED; }
 QFrame#placeholderTile { background: #E9ECF2; border: none; border-radius: 6px; }
 QFrame#loadingCard { background: #FFFFFF; border: 1px solid #E4E7EE; border-radius: 14px; }
+QDialog#settingsDialog { background: #F4F5F8; }
+QLabel#settingsHeading { font-size: 13px; font-weight: 700; color: #22252B; }
+QLabel#settingsHint { font-size: 12px; color: #6B7080; }
+QFrame#settingsPreview { background: #FFFFFF; border: 1px solid #E2E4EA; border-radius: 8px; }
 QLabel#loadingTitle { font-size: 22px; font-weight: 700; color: #22252B; background: transparent; border: none; }
 QLabel#loadingMessage { font-size: 14px; color: #6B7080; background: transparent; border: none; }
 """
@@ -83,9 +90,16 @@ def _light_palette() -> QPalette:
     return palette
 
 
+def app_data_folder() -> Path:
+    return Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
+
+
 def tasks_folder() -> Path:
-    base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
-    return Path(base) / "tasks"
+    return app_data_folder() / "tasks"
+
+
+def settings_file() -> Path:
+    return app_data_folder() / "settings.json"
 
 
 def main() -> int:
@@ -97,7 +111,7 @@ def main() -> int:
     app.setStyleSheet(STYLESHEET)
 
     # The window opens at once; the Tasks load in the background behind the loading card.
-    window = MainWindow(Board())
+    window = MainWindow(Board(), settings_store=SettingsStore(settings_file()))
     window.show()
     window.load_from(tasks_folder())
     return app.exec()

@@ -129,6 +129,32 @@ def test_a_new_task_starts_as_a_general_task_and_another_activity_can_be_picked(
     assert board.lane(Stage.INBOX, LaneKind.SOMEDAY)[0].activity == Activity.PHONE_CALL
 
 
+def test_the_activity_picker_lists_ask_after_general_task_and_calls_develop_code_develop(qtbot, board):
+    dialog = TaskDialog(board)
+    qtbot.addWidget(dialog)
+
+    assert [button.text() for button in dialog.activity_buttons.values()] == [
+        "General Task",
+        "Ask",
+        "Phone call",
+        "Meeting",
+        "Develop",
+        "Milestone",
+    ]
+    assert [b.x() for b in dialog.activity_buttons.values()] == sorted(b.x() for b in dialog.activity_buttons.values())
+
+
+def test_an_ask_card_shows_the_ask_badge(window, board):
+    board.add_task("Ask Dana about the invoice", activity=Activity.ASK)
+    window.board_view.refresh()
+
+    card = column_cards(window, Stage.INBOX)[0]
+
+    assert card.activity_badge.property("activity") == "ask"
+    assert card.activity_badge.toolTip() == "Ask"
+    assert not card.activity_badge.pixmap().isNull()
+
+
 def test_editing_shows_the_current_activity(qtbot, board):
     task = board.add_task("Standup", activity=Activity.MEETING)
 
@@ -457,8 +483,29 @@ def test_card_shows_its_activity_badge_before_the_status_circle(window, board):
 
     assert card.activity_badge.isVisible()
     assert card.activity_badge.property("activity") == "phone-call"
-    assert card.activity_badge.width() == 14
     assert badge_x < circle_x
+
+
+def test_the_activity_badge_is_20pt_in_the_free_strip_and_nothing_else_moves(window, board):
+    board.add_task("Call the bank", activity=Activity.PHONE_CALL)
+    board.add_task("Book the venue", activity=Activity.MEETING, deadline=date(2026, 10, 30))
+    window.board_view.refresh()
+    QApplication.processEvents()
+
+    for card in column_cards(window, Stage.INBOX):
+        badge = card.activity_badge.geometry()
+        circle = card.status_icon.geometry()
+        assert (badge.width(), badge.height()) == (20, 20)
+        assert badge.left() >= 5 and badge.right() < circle.left()  # between the urgency stripe and the circle
+        assert badge.center().y() == circle.center().y()  # level with the first title line
+        # Where everything else sat with the 14 pt badge.
+        assert (circle.x(), card.title_label.x()) == (28, 46)
+        # The card is exactly as tall as its text: the bigger badge adds nothing.
+        margins = card.layout().contentsMargins()
+        text = card.title_label.height() + (card.meta_label.height() + 2 if card.meta_label.isVisible() else 0)
+        assert card.height() == margins.top() + text + margins.bottom()
+    dated = column_cards(window, Stage.INBOX)[0]
+    assert dated.meta_label.x() == 28
 
 
 def test_done_cards_have_no_activity_badge(window, board):
@@ -727,7 +774,7 @@ def test_creating_a_task_in_the_dialog_clears_the_tag_filter_even_if_it_matches(
     assert not window.sidebar.clear_button.isEnabled()
 
 
-def test_a_task_edited_out_of_the_filter_just_disappears(qtbot, window, tagged, monkeypatch):
+def test_a_task_edited_out_of_the_filter_clears_the_filter_and_is_highlighted(qtbot, window, tagged, monkeypatch):
     window.refresh()
     click_bubble(qtbot, window, "home")
     code = next(c.task for c in column_cards(window, Stage.INBOX) if c.task.title == "Code")
@@ -740,8 +787,8 @@ def test_a_task_edited_out_of_the_filter_just_disappears(qtbot, window, tagged, 
     monkeypatch.setattr(TaskDialog, "exec", drop_home)
     window.open_task(code.id)
 
-    assert card_titles(window, Stage.INBOX) == ["1. Plan"]
-    assert window.sidebar.clear_button.text() == "✕ Clear (1)"
+    assert not window.sidebar.clear_button.isEnabled()
+    assert [c.task.title for c in column_cards(window, Stage.INBOX) if c.is_highlighted()] == ["Code"]
 
 
 def test_a_selected_tag_that_no_task_has_any_more_drops_out_of_the_filter(qtbot, window, tagged, monkeypatch):

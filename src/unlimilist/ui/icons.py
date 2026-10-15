@@ -12,9 +12,10 @@ _APP_ICON = _ASSETS / "app_icon.png"
 
 ACTIVITY_LABELS = {
     Activity.GENERAL_TASK: "General Task",
+    Activity.ASK: "Ask",
     Activity.PHONE_CALL: "Phone call",
     Activity.MEETING: "Meeting",
-    Activity.DEVELOP_CODE: "Develop code",
+    Activity.DEVELOP_CODE: "Develop",
     Activity.MILESTONE: "Milestone",
 }
 
@@ -41,6 +42,12 @@ _PATHS = {
     "lock": '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     "minus": '<path d="M5 12h14"/>',
     "plus": '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    "settings": '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73'
+    'l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 '
+    '2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25'
+    'a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74'
+    'l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>'
+    '<circle cx="12" cy="12" r="3"/>',
 }
 
 _SCALE = 2  # render at 2x for Retina
@@ -58,9 +65,17 @@ def pixmap(name: str, colour: str = "#3A3D45", size: int = 18, stroke: float = 2
     return image
 
 
-def icon(name: str, colour: str = "#3A3D45", size: int = 18, disabled_colour: str = "#B8BBC3") -> QIcon:
+def icon(
+    name: str,
+    colour: str = "#3A3D45",
+    size: int = 18,
+    disabled_colour: str = "#B8BBC3",
+    hover_colour: str | None = None,
+) -> QIcon:
     result = QIcon(pixmap(name, colour, size))
     result.addPixmap(pixmap(name, disabled_colour, size), QIcon.Mode.Disabled)
+    if hover_colour:
+        result.addPixmap(pixmap(name, hover_colour, size), QIcon.Mode.Active)
     return result
 
 

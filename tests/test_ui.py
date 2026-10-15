@@ -483,8 +483,29 @@ def test_card_shows_its_activity_badge_before_the_status_circle(window, board):
 
     assert card.activity_badge.isVisible()
     assert card.activity_badge.property("activity") == "phone-call"
-    assert card.activity_badge.width() == 14
     assert badge_x < circle_x
+
+
+def test_the_activity_badge_is_20pt_in_the_free_strip_and_nothing_else_moves(window, board):
+    board.add_task("Call the bank", activity=Activity.PHONE_CALL)
+    board.add_task("Book the venue", activity=Activity.MEETING, deadline=date(2026, 10, 30))
+    window.board_view.refresh()
+    QApplication.processEvents()
+
+    for card in column_cards(window, Stage.INBOX):
+        badge = card.activity_badge.geometry()
+        circle = card.status_icon.geometry()
+        assert (badge.width(), badge.height()) == (20, 20)
+        assert badge.left() >= 5 and badge.right() < circle.left()  # between the urgency stripe and the circle
+        assert badge.center().y() == circle.center().y()  # level with the first title line
+        # Where everything else sat with the 14 pt badge.
+        assert (circle.x(), card.title_label.x()) == (28, 46)
+        # The card is exactly as tall as its text: the bigger badge adds nothing.
+        margins = card.layout().contentsMargins()
+        text = card.title_label.height() + (card.meta_label.height() + 2 if card.meta_label.isVisible() else 0)
+        assert card.height() == margins.top() + text + margins.bottom()
+    dated = column_cards(window, Stage.INBOX)[0]
+    assert dated.meta_label.x() == 28
 
 
 def test_done_cards_have_no_activity_badge(window, board):

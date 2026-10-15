@@ -36,7 +36,10 @@ _MAX_LINES = 4
 _MAX_CHIP_CHARS = 12
 _CHIP_GAP = 6
 _STATUS_SIZE = 12
-_BADGE_SIZE = 14
+# The layout keeps a 14 pt slot for the Activity badge; the badge itself is bigger and floats over the free strip
+# between the urgency stripe and the status circle, so it never moves the text or grows the card.
+_BADGE_SLOT = 14
+_BADGE_SIZE = 20
 _BADGE_GAP = 6
 _LATE_BORDER_WIDTH = 2
 _MARK_WASH = QColor(255, 255, 255, 140)
@@ -211,7 +214,7 @@ class CardWidget(QFrame):
         self.activity_badge.setProperty("activity", task.activity.value)
         self.activity_badge.setPixmap(activity_pixmap(task.activity, _BADGE_SIZE))
         self.activity_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.activity_badge.setFixedSize(_BADGE_SIZE, title_line)
+        self.activity_badge.setFixedSize(_BADGE_SIZE, _BADGE_SIZE)
         self.activity_badge.setStyleSheet("background: transparent;")
         self.activity_badge.setToolTip(ACTIVITY_LABELS[task.activity])
         self.activity_badge.setHidden(self._done)
@@ -259,7 +262,8 @@ class CardWidget(QFrame):
         vertical = 7 if self._done else 9
         layout.setContentsMargins(_STRIPE + (10 if self._done else 3), vertical, 10, vertical)
         layout.setSpacing(_BADGE_GAP)
-        layout.addWidget(self.activity_badge, 0, Qt.AlignmentFlag.AlignTop)
+        if not self._done:
+            layout.addSpacing(_BADGE_SLOT + _BADGE_GAP)  # a spacer gets no layout spacing of its own
         layout.addLayout(content, 1)
 
         self._mark_overlay = _MarkOverlay(self)
@@ -373,7 +377,7 @@ class CardWidget(QFrame):
         """The title wraps over every line the card has (4, less one for a dates line; Done cards keep one),
         its first line making room for the Tag chip."""
         margins = self.layout().contentsMargins()
-        badge = 0 if self._done else _BADGE_SIZE + _BADGE_GAP
+        badge = 0 if self._done else _BADGE_SLOT + _BADGE_GAP
         content_width = max(self.width() - margins.left() - margins.right() - badge, 40)
         width = content_width - (_STATUS_SIZE + 6)
         chip = 0 if self.tag_chip.isHidden() else self.tag_chip.width() + _CHIP_GAP
@@ -386,6 +390,12 @@ class CardWidget(QFrame):
             margins.top() + (self._title_line - self.tag_chip.height()) // 2,
         )
         self.tag_chip.raise_()
+        # The badge is centred in the strip between the urgency stripe and the circle, level with the circle.
+        circle_left = margins.left() + _BADGE_SLOT + _BADGE_GAP
+        self.activity_badge.move(
+            (_STRIPE + circle_left - _BADGE_SIZE) // 2,
+            margins.top() + (self._title_line - 1) // 2 - (_BADGE_SIZE - 1) // 2,
+        )
         if hasattr(self, "_mark_overlay"):
             self._mark_overlay.raise_()  # the check stays above the chip
         self.updateGeometry()  # the line count, and so the height, may have changed

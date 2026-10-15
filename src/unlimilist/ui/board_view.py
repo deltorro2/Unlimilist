@@ -60,6 +60,12 @@ class BoardView(QWidget):
             if column.reveal(task_id):
                 return
 
+    def set_card_font_size(self, size: int) -> None:
+        """Draw the cards' text at Card font size `size` (1 to 5)."""
+        for column in self._columns.values():
+            column.set_card_font_size(size)
+        self.refresh()
+
     def show_placeholders(self, count: int = 4) -> None:
         for column in self._columns.values():
             column.show_placeholders(count)

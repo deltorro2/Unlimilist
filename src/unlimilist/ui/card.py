@@ -49,6 +49,9 @@ _MARK_CHECK_SIZE = 16
 _HIGHLIGHT = QColor("#FFE066")
 _HIGHLIGHT_HOLD_MS = 1000
 _HIGHLIGHT_FADE_MS = 400
+# Card font size (1 to 5): points added to the text drawn at size 2, the size cards always had.
+_FONT_STEPS = {1: -2, 2: 0, 3: 2, 4: 5, 5: 7}
+_CHIP_PIXELS = 11  # the Tag chip's text at size 2
 
 
 class Dragged(NamedTuple):
@@ -171,7 +174,7 @@ class CardWidget(QFrame):
     clicked = Signal(str)
     menuRequested = Signal(str, QPoint)  # task id, where on screen
 
-    def __init__(self, task: Task, urgency: Urgency, fill: QColor, parent=None):
+    def __init__(self, task: Task, urgency: Urgency, fill: QColor, parent=None, font_size: int = 2):
         super().__init__(parent)
         self.task = task
         self._urgency = urgency
@@ -200,8 +203,10 @@ class CardWidget(QFrame):
             {"full": "Done", "two_thirds": "Has Subtasks", "empty": "No Subtasks"}[status_fill(task)]
         )
 
+        extra = _FONT_STEPS[font_size]
         self.title_label = QLabel(self)
         title_font = self.title_label.font()
+        title_font.setPointSizeF(title_font.pointSizeF() + extra)
         title_font.setBold(True)
         title_font.setStrikeOut(self._done)
         self.title_label.setFont(title_font)
@@ -225,16 +230,20 @@ class CardWidget(QFrame):
         self.tag_chip = QLabel(tag_chip_text(task), self)
         self.tag_chip.setObjectName("tagChip")
         self.tag_chip.setToolTip(" ".join(f"#{name}" for name in task.tags))
+        chip_font = self.tag_chip.font()
+        chip_font.setPixelSize(_CHIP_PIXELS + extra)
+        chip_font.setWeight(QFont.Weight.DemiBold)
+        self.tag_chip.setFont(chip_font)
         self.tag_chip.setStyleSheet(
             f"background: {TAG_BACKGROUND.name()}; color: {TAG_INK.name()}; border: 1px solid rgba(0, 0, 0, 0.12);"
-            " border-radius: 7px; padding: 0px 6px; font-size: 11px; font-weight: 600;"
+            f" border-radius: {(_CHIP_PIXELS + extra) * 7 // 11}px; padding: 0px 6px;"
         )
         self.tag_chip.adjustSize()
         self.tag_chip.setHidden(not task.tags)
 
         self.meta_label = QLabel(self._meta_text(), self)
         meta_font = self.meta_label.font()
-        meta_font.setPointSizeF(meta_font.pointSizeF() - 2)
+        meta_font.setPointSizeF(meta_font.pointSizeF() - 2 + extra)
         self.meta_label.setFont(meta_font)
         self._set_ink(ink)
         self.meta_label.setHidden(not self.meta_label.text())
@@ -385,6 +394,9 @@ class CardWidget(QFrame):
 
         title_lines = wrap_lines(self._title_text(), self.title_label.font(), width, max_lines, width - chip)
         self.title_label.setText("\n".join(title_lines))
+        # The dates line keeps to one line; at big font sizes it may not fit, so it ends in "…".
+        meta_metrics = QFontMetrics(self.meta_label.font())
+        self.meta_label.setText(meta_metrics.elidedText(self._meta_text(), Qt.TextElideMode.ElideRight, content_width))
         self.tag_chip.move(
             self.width() - margins.right() - self.tag_chip.width(),
             margins.top() + (self._title_line - self.tag_chip.height()) // 2,

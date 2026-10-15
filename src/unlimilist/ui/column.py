@@ -79,6 +79,7 @@ class ColumnWidget(QFrame):
         scroll.setWidget(self._container)
         self._scroll = scroll
         self._revealing: str | None = None
+        self._font_size = 2
         scroll.verticalScrollBar().rangeChanged.connect(self._scroll_to_revealed)
         scroll.verticalScrollBar().actionTriggered.connect(self._stop_revealing)  # the user scrolled
 
@@ -120,6 +121,10 @@ class ColumnWidget(QFrame):
         self._revealing = task_id
         QTimer.singleShot(0, self, self._scroll_to_revealed)
         return True
+
+    def set_card_font_size(self, size: int) -> None:
+        """The Card font size (1 to 5) for the cards made from the next set_tasks on."""
+        self._font_size = size
 
     def scroll_position(self) -> int:
         return self._scroll.verticalScrollBar().value()
@@ -176,7 +181,9 @@ class ColumnWidget(QFrame):
             if shown is not None and task.id not in shown:
                 continue
             kind = None if self.stage == Stage.DONE else task.kind
-            card = CardWidget(task, urgency, card_fill(self.stage, kind, index, len(tasks)))
+            card = CardWidget(
+                task, urgency, card_fill(self.stage, kind, index, len(tasks)), font_size=self._font_size
+            )
             card.clicked.connect(self.cardClicked)
             card.menuRequested.connect(self.cardMenuRequested)
             row = self._row_for(card)

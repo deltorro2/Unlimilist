@@ -1,5 +1,6 @@
 """The main window: sidebar on the left, Board on the right."""
 
+from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import QElapsedTimer, QPoint, Qt, QTimer
@@ -10,6 +11,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMessageBox,
+    QSizePolicy,
     QWidget,
 )
 
@@ -19,8 +21,10 @@ from unlimilist.domain import LaneKind, Stage, UnfinishedSubtasks
 from unlimilist.ui.app_title import AppTitle
 from unlimilist.ui.balloon import Balloon
 from unlimilist.ui.board_view import BoardView
-from unlimilist.ui.icons import app_icon
+from unlimilist.settings import Settings, SettingsStore
+from unlimilist.ui.icons import app_icon, icon
 from unlimilist.ui.loading import BoardLoader, LoadingScreen
+from unlimilist.ui.settings_dialog import SettingsDialog
 from unlimilist.ui.sidebar import Sidebar
 from unlimilist.ui.task_dialog import TaskDialog
 
@@ -35,9 +39,18 @@ _MINIMUM_LOADING_MS = 5000  # the loading card shows at least this long on every
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, board: Board, warnings: list[str] | None = None, parent=None):
+    def __init__(
+        self,
+        board: Board,
+        warnings: list[str] | None = None,
+        parent=None,
+        settings_store: SettingsStore | None = None,
+    ):
         super().__init__(parent)
         self._board = board
+        # Without a store (as in tests) the settings start at their defaults and are not saved.
+        self._settings_store = settings_store
+        self._settings = settings_store.load() if settings_store else Settings()
         self.setWindowTitle(f"{_APP_NAME} {_VERSION}")
         self.setWindowIcon(app_icon())
         self._open_at_default_size()
@@ -51,6 +64,7 @@ class MainWindow(QMainWindow):
 
         self.balloon = Balloon(self)
         self.board_view = BoardView(board)
+        self.board_view.set_card_font_size(self._settings.card_font_size)
         self.board_view.cardClicked.connect(self._card_clicked)
         self.board_view.cardMenuRequested.connect(self._show_card_menu)
         self.board_view.taskAdded.connect(self._task_created)
@@ -69,7 +83,7 @@ class MainWindow(QMainWindow):
         self.new_task_action = QAction("＋ New Task", self)
         self.new_task_action.setShortcut(QKeySequence.StandardKey.New)
         self.new_task_action.triggered.connect(self.new_task)
-        toolbar = self.addToolBar("Main")
+        toolbar = self.toolbar = self.addToolBar("Main")
         toolbar.setMovable(False)
         toolbar.addWidget(self._build_title())
         toolbar.addAction(self.new_task_action)
@@ -80,6 +94,17 @@ class MainWindow(QMainWindow):
         self.delete_action.triggered.connect(self._delete_pressed)
         toolbar.addAction(self.delete_action)
         toolbar.widgetForAction(self.delete_action).setObjectName("deleteTaskButton")
+        # Settings: a plain gear, alone at the far right.
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        spacer.setStyleSheet("background: transparent;")
+        toolbar.addWidget(spacer)
+        self.settings_action = QAction(icon("settings", "#7A7F8C", 20, hover_colour="#3A3D45"), "", self)
+        self.settings_action.setToolTip("Settings")
+        self.settings_action.setShortcut(QKeySequence("Ctrl+,"))  # ⌘, on macOS
+        self.settings_action.triggered.connect(self.open_settings)
+        toolbar.addAction(self.settings_action)
+        toolbar.widgetForAction(self.settings_action).setObjectName("settingsButton")
 
         self._show_warnings(warnings or [])
         self.loading_screen: LoadingScreen | None = None
@@ -146,6 +171,7 @@ class MainWindow(QMainWindow):
     def _set_interactive(self, interactive: bool) -> None:
         self.new_task_action.setEnabled(interactive)
         self.delete_action.setEnabled(interactive)
+        self.settings_action.setEnabled(interactive)
         self.centralWidget().setEnabled(interactive)
 
     def _show_warnings(self, warnings: list[str]) -> None:
@@ -162,6 +188,20 @@ class MainWindow(QMainWindow):
         if self._loader is not None:
             self._loader.wait()  # never destroy the loader thread while it runs
         super().closeEvent(event)
+
+    # Settings
+
+    def open_settings(self) -> None:
+        dialog = SettingsDialog(self._settings, parent=self)
+        dialog.cardFontSizeChanged.connect(self._set_card_font_size)
+        dialog.exec()
+
+    def _set_card_font_size(self, size: int) -> None:
+        """Redraw the Board at once and remember the size."""
+        self._settings = replace(self._settings, card_font_size=size)
+        if self._settings_store is not None:
+            self._settings_store.save(self._settings)
+        self.board_view.set_card_font_size(size)
 
     # Delete Task mode
 
@@ -181,6 +221,7 @@ class MainWindow(QMainWindow):
         self._delete_mode = on
         self._marked = set()
         self.new_task_action.setEnabled(not on)
+        self.settings_action.setEnabled(not on)
         self.sidebar.setEnabled(not on)
         self.board_view.quick_add.setEnabled(not on)
         if on:

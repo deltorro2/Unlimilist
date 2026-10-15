@@ -10,7 +10,11 @@ _Avoid_: Todo, card, item
 
 **Board**:
 The Kanban view of Tasks, arranged into Stages and Lanes.
-_Avoid_: Kanban, view
+_Avoid_: Kanban, view, Dashboard
+
+**Card font size**:
+How large the text on the Board's cards is drawn: one of five sizes, from 1 (smallest) to 5 (largest), where 2 is the standard size. It can make cards taller but never wider. It is chosen in Settings, on the Board view tab, and kept between launches.
+_Avoid_: Zoom, dashboard font, text scale
 
 **Stage**:
 One of Inbox, In Process or Done, i.e. where a Task is in its life. The Board draws each Stage as a Column.

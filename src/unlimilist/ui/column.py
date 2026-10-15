@@ -1,11 +1,13 @@
 """A Column on the Board: one Stage, its Someday cards aligned left and Time-limited cards aligned right."""
 
-from PySide6.QtCore import QPoint, Qt, QTimer, Signal
+from PySide6.QtCore import QEasingCurve, QPoint, Qt, QTimer, QVariantAnimation, Signal
+from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from unlimilist.domain import LaneKind, Stage, Task, Urgency
 from unlimilist.ui.card import CardWidget, decode_drag
 from unlimilist.ui.styling import card_fill
+from unlimilist.ui.toggle_switch import ToggleSwitch
 
 # While the Tag filter hides some cards, a drop position is ambiguous: a Task moved in from another Stage
 # goes to the bottom (rank 999 means the bottom), and reordering within the Stage is refused.
@@ -14,6 +16,12 @@ _FILTERED_REORDER_HINT = "Clear the Tag filter to reorder"
 _CARD_SHARE = 3  # a card takes 3 parts of 4, i.e. 75% of the Column width
 _GAP_SHARE = 1
 _REVEAL_MARGIN = 24  # room left above or below a card the Column jumps to
+FOLDED_WIDTH = 90  # Folded Done: a strip just wide enough for its title and switch
+_SLIDE_MS = 250
+# A Task dropped on Folded Done has no card to highlight, so the strip flashes the landing highlight instead.
+_FLASH = QColor("#FFE066")
+_FLASH_HOLD_MS = 1000
+_FLASH_FADE_MS = 400
 
 _DROP_HINTS = {
     LaneKind.SOMEDAY: "Drop as Someday",
@@ -23,6 +31,49 @@ _CONVERSION_HINTS = {
     LaneKind.SOMEDAY: "Drop as Someday — clears the dates",
     LaneKind.TIME_LIMITED: "Drop as Time-limited — asks for a date",
 }
+
+
+class _Flash(QWidget):
+    """Laid over the folded strip: yellow, held, then faded out."""
+
+    def __init__(self, parent: QWidget):
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._strength = 0.0
+        self._animation = QVariantAnimation(self)
+        total = _FLASH_HOLD_MS + _FLASH_FADE_MS
+        self._animation.setDuration(total)
+        self._animation.setKeyValueAt(0.0, 1.0)
+        self._animation.setKeyValueAt(_FLASH_HOLD_MS / total, 1.0)
+        self._animation.setKeyValueAt(1.0, 0.0)
+        self._animation.valueChanged.connect(self._set_strength)
+        self._animation.finished.connect(self.hide)
+        self.hide()
+
+    def flash(self) -> None:
+        self.setGeometry(self.parentWidget().rect())
+        self.raise_()
+        self.show()
+        self._animation.stop()
+        self._animation.start()
+        self._set_strength(1.0)
+
+    def is_flashing(self) -> bool:
+        return self.isVisible()
+
+    def _set_strength(self, value) -> None:
+        self._strength = float(value)
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        colour = QColor(_FLASH)
+        colour.setAlphaF(0.85 * self._strength)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(colour)
+        painter.drawRoundedRect(self.rect(), 8, 8)
+        painter.end()
 
 
 class ColumnWidget(QFrame):
@@ -38,7 +89,7 @@ class ColumnWidget(QFrame):
         self.setObjectName("stage")
         self.setAcceptDrops(True)
 
-        header = QLabel(title)
+        header = self.header = QLabel(title)
         header.setObjectName("stageHeader")
 
         self._someday_count = QLabel()
@@ -51,6 +102,7 @@ class ColumnWidget(QFrame):
         counts.addStretch(1)
         counts.addWidget(self._time_limited_count)
         self._time_limited_count.setHidden(stage == Stage.DONE)
+        self._counts = [self._someday_count, self._time_limited_count]
 
         self._hint = QLabel()
         self._hint.setObjectName("laneHint")
@@ -99,7 +151,64 @@ class ColumnWidget(QFrame):
         layout.addWidget(header)
         if top_widget is not None:
             layout.addWidget(top_widget)
+        self._folded = False
+        self._slide: QVariantAnimation | None = None
+        if stage == Stage.DONE:
+            self.fold_switch = ToggleSwitch(checked=True)
+            self.fold_switch.setObjectName("foldSwitch")
+            self.fold_switch.setToolTip("Hide Done")
+            layout.addWidget(self.fold_switch, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(self._body, 1)
+        self._flash = _Flash(self._body)
+
+    # Folded Done
+
+    def is_folded(self) -> bool:
+        return self._folded
+
+    def is_sliding(self) -> bool:
+        return self._slide is not None
+
+    def is_flashing(self) -> bool:
+        return self._flash.is_flashing()
+
+    def flash(self) -> None:
+        self._flash.flash()
+
+    def slide(self, folded: bool, to_width: int, finished=None) -> None:
+        """Fold to the strip, or unfold to `to_width`, sliding. Unfolded, the Column then takes its share of the
+        Board again. While folded only the title, the switch and the empty lane (still a drop target) show."""
+        self._folded = folded
+        self.fold_switch.setToolTip("Show Done" if folded else "Hide Done")
+        if folded:
+            self._show_lane_contents(False)
+        if self._slide is not None:
+            self._slide.stop()
+        self._slide = QVariantAnimation(self)
+        self._slide.setDuration(_SLIDE_MS)
+        self._slide.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        self._slide.setStartValue(self.width())
+        self._slide.setEndValue(to_width)
+        self._slide.valueChanged.connect(lambda width: self.setFixedWidth(int(width)))
+
+        def done() -> None:
+            self._slide = None
+            if not folded:
+                self.setMinimumWidth(0)
+                self.setMaximumWidth(16777215)  # QWIDGETSIZE_MAX: the Board's stretch decides again
+                self._show_lane_contents(True)
+            if finished is not None:
+                finished()
+
+        self._slide.finished.connect(done)
+        self._slide.start()
+
+    def _show_lane_contents(self, shown: bool) -> None:
+        for label in self._counts:
+            label.setVisible(shown and not (label is self._time_limited_count and self.stage == Stage.DONE))
+        self._scroll.setVisible(shown)
+        if not shown:
+            self._hint.hide()
 
     def drop_hint(self) -> str:
         """The hint shown while a Task is dragged over this Column, or "" when there is none."""
@@ -114,6 +223,9 @@ class ColumnWidget(QFrame):
         card = self._card(task_id)
         if card is None:
             return False
+        if self._folded:
+            self.flash()  # its card can't be seen
+            return True
         card.highlight()
         # The cards were just rebuilt: Qt shows and lays them out over its next turns, and the Column keeps
         # growing (a scrollbar appears, titles rewrap). So the jump is aimed again each time the scroll range
@@ -268,7 +380,7 @@ class ColumnWidget(QFrame):
             # The Board will refuse it; say why rather than invite the drop.
             self._set_drop_side("blocked")
             self._hint.setText(f"{unfinished} unfinished {'subtask' if unfinished == 1 else 'subtasks'}")
-            self._hint.show()
+            self._hint.setVisible(not self._folded)  # the strip is too narrow; the balloon says it on drop
             return
         if self._reorder_refused(task_id):
             self._set_drop_side("blocked")

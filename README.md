@@ -36,6 +36,7 @@ Jira, Todoist and TickTick do a thousand things you'll never use. Trello does to
 - 🏷 **Tags with instant filtering.** Write `#client-x` anywhere in the Details; pick Tags in the sidebar to see just those Tasks. Autocomplete suggests the Tags you already use.
 - 📞 **Activities at a glance.** A badge on each card tells a call from a meeting, a question to ask, a coding session or a milestone.
 - 🧹 **Tidy up fast.** Select several Tasks and delete them in one go, or duplicate a Task to reuse it. Deleted files are kept, so nothing is lost by mistake.
+- 🗄 **Fold Done away.** A switch under Done folds it to a slim strip, so Inbox and In Process get the room; you can still drop Tasks on it to finish them.
 - 🔠 **Text at a size that suits you.** Pick one of five card font sizes in Settings (the gear, or ⌘,); the Board follows as you slide.
 - 🔒 **Your data stays yours.** Every Task is a plain Markdown file on your Mac that you can read, back up or edit in any editor.
 
@@ -100,8 +101,8 @@ src/unlimilist/
   settings.py      settings.json: the user's settings, such as the card font size
   app.py           startup, styles, the data folder
   ui/              the Qt widgets: main window, Columns, cards, Task dialog, Settings, sidebar, loading card
-tests/             test_board.py (domain), test_ui.py, test_settings.py, test_highlight.py, test_loading.py,
-                   test_delete_and_duplicate.py
+tests/             test_board.py (domain), test_ui.py, test_settings.py, test_highlight.py, test_fold_done.py,
+                   test_loading.py, test_delete_and_duplicate.py
 scripts/           build_app.sh, build_dmg.sh, make_test_tasks.py, readme_screenshots.py
 docs/adr/          architecture decision records
 CONTEXT.md         the glossary: the words the code and the UI use

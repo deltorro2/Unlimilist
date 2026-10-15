@@ -68,6 +68,7 @@ class MainWindow(QMainWindow):
         self.board_view.cardClicked.connect(self._card_clicked)
         self.board_view.cardMenuRequested.connect(self._show_card_menu)
         self.board_view.taskAdded.connect(self._task_created)
+        self.board_view.doneFoldedChanged.connect(self._done_folded)
         # Queued: a drop may open a modal dialog, which must not run inside the drag loop.
         self.board_view.taskDropped.connect(self.handle_drop, Qt.ConnectionType.QueuedConnection)
 
@@ -229,6 +230,12 @@ class MainWindow(QMainWindow):
         else:
             self.board_view.unsetCursor()
         self.refresh()
+
+    def _done_folded(self, folded: bool) -> None:
+        """Folding Done unmarks its Tasks, so nothing out of sight gets deleted."""
+        if folded and self._marked:
+            self._marked -= {t.id for t in self._board.column(Stage.DONE)}
+            self._show_delete_mode()
 
     def _card_clicked(self, task_id: str) -> None:
         if not self._delete_mode:

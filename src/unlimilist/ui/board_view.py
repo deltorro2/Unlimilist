@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from unlimilist.board import Board
 from unlimilist.domain import Stage
-from unlimilist.ui.column import ColumnWidget
+from unlimilist.ui.column import FOLDED_WIDTH, ColumnWidget
 
 _STAGE_TITLES = {Stage.INBOX: "Inbox", Stage.IN_PROCESS: "In Process", Stage.DONE: "Done"}
 # Done is 40% narrower than the other Columns.
@@ -17,6 +17,7 @@ class BoardView(QWidget):
     cardMenuRequested = Signal(str, QPoint)
     taskAdded = Signal(str)  # the new Task's id
     taskDropped = Signal(str, object, object, int, QPoint)
+    doneFoldedChanged = Signal(bool)
 
     def __init__(self, board: Board, parent=None):
         super().__init__(parent)
@@ -39,6 +40,7 @@ class BoardView(QWidget):
             column.taskDropped.connect(self.taskDropped)
             self._columns[stage] = column
             layout.addWidget(column, _STRETCH[stage])
+        self._columns[Stage.DONE].fold_switch.toggled.connect(lambda shown: self.set_done_folded(not shown))
         self.refresh()
 
     def column_widget(self, stage: Stage) -> ColumnWidget:
@@ -59,6 +61,22 @@ class BoardView(QWidget):
         for column in self._columns.values():
             if column.reveal(task_id):
                 return
+
+    def set_done_folded(self, folded: bool) -> None:
+        """Fold Done to a strip, or unfold it, sliding; Inbox and In Process take up the room. Never saved."""
+        done = self._columns[Stage.DONE]
+        if folded == done.is_folded():
+            return
+        done.fold_switch.setChecked(not folded)
+        done.slide(folded, FOLDED_WIDTH if folded else self._unfolded_done_width())
+        self.doneFoldedChanged.emit(folded)
+
+    def _unfolded_done_width(self) -> int:
+        """Done's width when the Board's stretch shares the room out again."""
+        layout = self.layout()
+        margins = layout.contentsMargins()
+        room = self.width() - margins.left() - margins.right() - layout.spacing() * (len(self._columns) - 1)
+        return round(room * _STRETCH[Stage.DONE] / sum(_STRETCH.values()))
 
     def set_card_font_size(self, size: int) -> None:
         """Draw the cards' text at Card font size `size` (1 to 5)."""

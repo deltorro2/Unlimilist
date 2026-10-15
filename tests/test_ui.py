@@ -396,9 +396,9 @@ def test_window_has_the_app_icon(window):
 
 def test_toolbar_shows_the_app_name_with_its_version(window):
     title = window.app_title
-    assert (title.name(), title.version()) == ("UnlimiList", "1.8")
-    assert title.accessibleName() == "UnlimiList 1.8"
-    assert window.windowTitle() == "UnlimiList 1.8"
+    assert (title.name(), title.version()) == ("UnlimiList", "1.9")
+    assert title.accessibleName() == "UnlimiList 1.9"
+    assert window.windowTitle() == "UnlimiList 1.9"
 
 
 def test_column_shows_the_interleaved_order(window, board):

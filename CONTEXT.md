@@ -31,6 +31,10 @@ _Avoid_: Merged lane, stack
 **Inbox / In Process / Done**:
 The three Stages. Inbox and In Process each have a Someday Lane and a Time-limited Lane. Done is a single list that holds both kinds of Task. A Task in In Process cannot be deleted; it has to leave In Process first.
 
+**Folded Done**:
+Done shown only as a narrow strip at the right of the Board, with its title and switch, so Inbox and In Process get its room. Tasks can still be dropped on the strip to complete them. Every launch starts with Done unfolded.
+_Avoid_: Hidden, closed, collapsed
+
 **Deleted Task**:
 A Task the user deleted from Inbox or Done. It leaves the Board for good, but its file is kept under a name ending in `-deleted`, so it can be recovered by hand. A Task in In Process cannot be deleted.
 _Avoid_: Removed, archived, trashed

@@ -594,3 +594,13 @@ def test_has_task_is_false_once_the_task_is_deleted():
     board.delete_task(task.id)
 
     assert not board.has_task(task.id)
+
+
+def test_an_ask_task_is_saved_as_ask_and_loads_back(tmp_path):
+    from unlimilist.store import MarkdownTaskStore
+
+    board = Board(MarkdownTaskStore(tmp_path), clock=FakeClock())
+    task = board.add_task("Ask Dana about the invoice", activity=Activity.ASK)
+
+    assert "activity: ask\n" in (tmp_path / f"{task.id}.md").read_text()
+    assert Board(MarkdownTaskStore(tmp_path), clock=FakeClock()).task(task.id).activity == Activity.ASK

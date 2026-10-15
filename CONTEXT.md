@@ -47,7 +47,7 @@ Optional formatted text that describes what the Task is.
 _Avoid_: Description, notes
 
 **Activity**:
-The kind of work a Task represents: General Task, Phone call, Meeting, Develop code or Milestone. Every Task has exactly one, and a new Task starts as General Task. It describes the work only and does not affect where the Task sits on the Board.
+The kind of work a Task represents: General Task, Ask, Phone call, Meeting, Develop or Milestone. Ask means getting an answer or information from someone, such as a question to a colleague, a client or support. Every Task has exactly one, and a new Task starts as General Task. It describes the work only and does not affect where the Task sits on the Board.
 _Avoid_: Type, category, kind
 
 **Subtask**:

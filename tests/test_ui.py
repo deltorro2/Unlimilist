@@ -129,6 +129,32 @@ def test_a_new_task_starts_as_a_general_task_and_another_activity_can_be_picked(
     assert board.lane(Stage.INBOX, LaneKind.SOMEDAY)[0].activity == Activity.PHONE_CALL
 
 
+def test_the_activity_picker_lists_ask_after_general_task_and_calls_develop_code_develop(qtbot, board):
+    dialog = TaskDialog(board)
+    qtbot.addWidget(dialog)
+
+    assert [button.text() for button in dialog.activity_buttons.values()] == [
+        "General Task",
+        "Ask",
+        "Phone call",
+        "Meeting",
+        "Develop",
+        "Milestone",
+    ]
+    assert [b.x() for b in dialog.activity_buttons.values()] == sorted(b.x() for b in dialog.activity_buttons.values())
+
+
+def test_an_ask_card_shows_the_ask_badge(window, board):
+    board.add_task("Ask Dana about the invoice", activity=Activity.ASK)
+    window.board_view.refresh()
+
+    card = column_cards(window, Stage.INBOX)[0]
+
+    assert card.activity_badge.property("activity") == "ask"
+    assert card.activity_badge.toolTip() == "Ask"
+    assert not card.activity_badge.pixmap().isNull()
+
+
 def test_editing_shows_the_current_activity(qtbot, board):
     task = board.add_task("Standup", activity=Activity.MEETING)
 

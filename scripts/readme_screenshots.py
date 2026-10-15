@@ -24,7 +24,8 @@ from unlimilist.ui.task_dialog import TaskDialog  # noqa: E402
 
 TODAY = date(2026, 10, 13)
 SCALE = 2  # drawn at Retina resolution, so the images stay sharp on GitHub
-CALL, MEETING, CODE, MILESTONE = Activity.PHONE_CALL, Activity.MEETING, Activity.DEVELOP_CODE, Activity.MILESTONE
+ASK, CALL, MEETING = Activity.ASK, Activity.PHONE_CALL, Activity.MEETING
+CODE, MILESTONE = Activity.DEVELOP_CODE, Activity.MILESTONE
 
 
 def days(n: int) -> date:
@@ -51,7 +52,7 @@ def synthetic_board() -> tuple[Board, str]:
         usable_data="Branch: `refactor/sync`\n\nhttps://github.com/deltorro2/Unlimilist",
     )
     add("Call grandma", activity=CALL, details="Ask about the family recipes #family")
-    add("Book club evening", activity=MEETING, details="Bring the second volume #reading")
+    add("Ask Sam when book club meets", activity=ASK, details="Bring the second volume #reading")
     add("Read Designing Data-Intensive Applications", details="Chapters 5 to 7 #reading #work")
 
     # Inbox, Time-limited: one Task for each Urgency.

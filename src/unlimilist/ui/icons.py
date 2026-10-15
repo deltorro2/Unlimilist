@@ -12,9 +12,10 @@ _APP_ICON = _ASSETS / "app_icon.png"
 
 ACTIVITY_LABELS = {
     Activity.GENERAL_TASK: "General Task",
+    Activity.ASK: "Ask",
     Activity.PHONE_CALL: "Phone call",
     Activity.MEETING: "Meeting",
-    Activity.DEVELOP_CODE: "Develop code",
+    Activity.DEVELOP_CODE: "Develop",
     Activity.MILESTONE: "Milestone",
 }
 

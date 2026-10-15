@@ -34,7 +34,7 @@ Jira, Todoist and TickTick do a thousand things you'll never use. Trello does to
 - 🧾 **Context lives with the Task.** Rich-text Details for what the Task is, and Usable data for links, numbers and code snippets.
 - ✅ **Subtasks that mean it.** Checklists in the Details; a Task can't reach Done while any are open.
 - 🏷 **Tags with instant filtering.** Write `#client-x` anywhere in the Details; pick Tags in the sidebar to see just those Tasks. Autocomplete suggests the Tags you already use.
-- 📞 **Activities at a glance.** A badge on each card tells a call from a meeting, a coding session or a milestone.
+- 📞 **Activities at a glance.** A badge on each card tells a call from a meeting, a question to ask, a coding session or a milestone.
 - 🧹 **Tidy up fast.** Select several Tasks and delete them in one go, or duplicate a Task to reuse it. Deleted files are kept, so nothing is lost by mistake.
 - 🔒 **Your data stays yours.** Every Task is a plain Markdown file on your Mac that you can read, back up or edit in any editor.
 

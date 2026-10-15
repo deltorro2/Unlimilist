@@ -249,8 +249,7 @@ class MainWindow(QMainWindow):
             menu.exec(at)
 
     def _duplicate(self, task_id: str) -> None:
-        self._board.duplicate_task(task_id)
-        self._task_created()
+        self._task_created(self._board.duplicate_task(task_id).id)
 
     def _delete_one(self, task_id: str) -> None:
         if self._confirm_delete(1):
@@ -274,39 +273,61 @@ class MainWindow(QMainWindow):
         self._tag_filter = frozenset()
         self.refresh()
 
-    def _task_created(self) -> None:
-        """Creating a Task clears the Tag filter, so the new Task is never hidden."""
+    def _task_created(self, task_id: str) -> None:
+        """Creating a Task clears the Tag filter, so the new Task is never hidden, and shows where it landed."""
         self.clear_tag_filter()
+        self.board_view.highlight(task_id)
 
     def new_task(self) -> None:
-        if TaskDialog(self._board, parent=self).exec() == QDialog.DialogCode.Accepted:
-            self._task_created()
+        dialog = TaskDialog(self._board, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._task_created(dialog.task_id)
         else:
             self.refresh()
 
     def open_task(self, task_id: str) -> None:
+        """Edit a Task. If saving moves it, show where it went; if the Tag filter now hides it, clear the filter."""
+        before = self._place(task_id)
         TaskDialog(self._board, self._board.task(task_id), parent=self).exec()
-        self.refresh()
+        if not self._board.has_task(task_id):  # deleted from the dialog
+            self.refresh()
+        elif self._tag_filter and not self._board.task(task_id).matches_tag_filter(self._tag_filter):
+            self.clear_tag_filter()
+            self.board_view.highlight(task_id)
+        else:
+            self.refresh()
+            if self._place(task_id) != before:
+                self.board_view.highlight(task_id)
+
+    def _place(self, task_id: str) -> tuple[Stage, int]:
+        """Where a Task sits: its Stage and its position in that Stage's Column."""
+        stage = self._board.task(task_id).stage
+        return stage, [t.id for t in self._board.column(stage)].index(task_id)
 
     def handle_drop(
         self, task_id: str, stage: Stage, kind: LaneKind | None, index: int, at: QPoint | None = None
     ) -> None:
         """Move a dropped Task; dropping onto the other kind of Lane converts it first.
 
-        A Task the Board refuses to complete stays put, and a balloon at `at` says why.
+        A Task the Board refuses to complete stays put, and a balloon at `at` says why. A Task that moved is
+        highlighted where it landed.
         """
         task = self._board.task(task_id)
+        moved = False
         if stage == Stage.DONE:
             try:
                 self._board.move_task(task_id, stage)
+                moved = True
             except UnfinishedSubtasks as refused:
                 self.balloon.show_at(at or QCursor.pos(), str(refused))
         elif kind == task.kind:
             self._board.move_task(task_id, stage, priority=index + 1)
+            moved = True
         elif kind == LaneKind.TIME_LIMITED:
             dialog = TaskDialog(self._board, task, parent=self, require_date=True)
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 self._board.move_task(task_id, stage)
+                moved = True
         else:
             answer = QMessageBox.question(
                 self,
@@ -316,4 +337,7 @@ class MainWindow(QMainWindow):
             if answer == QMessageBox.StandardButton.Yes:
                 self._board.edit_task(task_id, due_date=None, deadline=None)
                 self._board.move_task(task_id, stage, priority=index + 1)
+                moved = True
         self.refresh()
+        if moved:
+            self.board_view.highlight(task_id)

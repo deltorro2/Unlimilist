@@ -2,7 +2,7 @@
 
 from typing import NamedTuple
 
-from PySide6.QtCore import QByteArray, QMimeData, QPoint, QRectF, Qt, Signal
+from PySide6.QtCore import QByteArray, QMimeData, QPoint, QRectF, Qt, QVariantAnimation, Signal
 from PySide6.QtGui import (
     QColor,
     QDrag,
@@ -41,6 +41,11 @@ _BADGE_GAP = 6
 _LATE_BORDER_WIDTH = 2
 _MARK_WASH = QColor(255, 255, 255, 140)
 _MARK_CHECK_SIZE = 16
+# A card that has just been created or moved turns yellow, holds, then fades back quickly: a slow blend from
+# yellow to a blue or green card passes through a muddy olive.
+_HIGHLIGHT = QColor("#FFE066")
+_HIGHLIGHT_HOLD_MS = 1000
+_HIGHLIGHT_FADE_MS = 400
 
 
 class Dragged(NamedTuple):
@@ -172,11 +177,12 @@ class CardWidget(QFrame):
         self._done = task.stage == Stage.DONE
         self._marked = False
         self._draggable = True
+        self._highlight_strength = 0.0
+        self._highlight: QVariantAnimation | None = None
+        self._ink: QColor | None = None
         self.setCursor(Qt.CursorShape.OpenHandCursor)
 
         ink = text_colour(fill)
-        muted = QColor(ink)
-        muted.setAlphaF(0.8)
 
         # Blue, lightened on dark cards so it stays visible.
         blue = QColor("#A9C8FF") if ink.lightness() > 128 else QColor("#1F5FD6")
@@ -209,7 +215,6 @@ class CardWidget(QFrame):
         self.activity_badge.setStyleSheet("background: transparent;")
         self.activity_badge.setToolTip(ACTIVITY_LABELS[task.activity])
         self.activity_badge.setHidden(self._done)
-        self.title_label.setStyleSheet(f"color: {ink.name()}; background: transparent;")
 
         # The first Tag in the top-right corner, with "+N" for the rest. It floats over the first title line
         # instead of taking a column, so only that line makes room for it.
@@ -228,7 +233,7 @@ class CardWidget(QFrame):
         meta_font = self.meta_label.font()
         meta_font.setPointSizeF(meta_font.pointSizeF() - 2)
         self.meta_label.setFont(meta_font)
-        self.meta_label.setStyleSheet(f"color: {muted.name(QColor.NameFormat.HexArgb)}; background: transparent;")
+        self._set_ink(ink)
         self.meta_label.setHidden(not self.meta_label.text())
 
         # Text is wrapped and cut to the card's width, so the labels must not dictate a width.
@@ -290,6 +295,60 @@ class CardWidget(QFrame):
         """The card's base colour, as #rrggbb."""
         return self._fill.name()
 
+    def shown_fill(self) -> str:
+        """The colour the card is drawn in right now, as #rrggbb: yellow while highlighted."""
+        return self._shown_fill().name()
+
+    def ink(self) -> str:
+        """The title's colour right now, as #rrggbb."""
+        return self._ink.name()
+
+    def highlight(self) -> None:
+        """Turn yellow, hold, then fade back to the card's own shade."""
+        self.stop_highlight()
+        total = _HIGHLIGHT_HOLD_MS + _HIGHLIGHT_FADE_MS
+        self._highlight = QVariantAnimation(self)
+        self._highlight.setDuration(total)
+        self._highlight.setKeyValueAt(0.0, 1.0)
+        self._highlight.setKeyValueAt(_HIGHLIGHT_HOLD_MS / total, 1.0)
+        self._highlight.setKeyValueAt(1.0, 0.0)
+        self._highlight.valueChanged.connect(self._set_highlight_strength)
+        self._highlight.finished.connect(self.stop_highlight)
+        self._highlight.start()
+        self._set_highlight_strength(1.0)
+
+    def stop_highlight(self) -> None:
+        if self._highlight is not None:
+            self._highlight.stop()
+            self._highlight = None
+        self._set_highlight_strength(0.0)
+
+    def is_highlighted(self) -> bool:
+        return self._highlight_strength > 0
+
+    def _set_highlight_strength(self, value) -> None:
+        self._highlight_strength = float(value)
+        self._set_ink(text_colour(self._shown_fill()))
+        self.update()
+
+    def _shown_fill(self) -> QColor:
+        s = self._highlight_strength
+        if s <= 0:
+            return self._fill
+        return QColor.fromRgbF(
+            *(s * high + (1 - s) * base for high, base in zip(_HIGHLIGHT.getRgbF()[:3], self._fill.getRgbF()[:3]))
+        )
+
+    def _set_ink(self, ink: QColor) -> None:
+        """Restyle the text only when its colour flips: a stylesheet change is slow."""
+        if ink == self._ink:
+            return
+        self._ink = ink
+        muted = QColor(ink)
+        muted.setAlphaF(0.8)
+        self.title_label.setStyleSheet(f"color: {ink.name()}; background: transparent;")
+        self.meta_label.setStyleSheet(f"color: {muted.name(QColor.NameFormat.HexArgb)}; background: transparent;")
+
     def _meta_text(self) -> str:
         if self._done:
             return f"✓ {format_date(self.task.completed_at)}"
@@ -342,14 +401,15 @@ class CardWidget(QFrame):
     def paintEvent(self, event):
         painter = QPainter(self)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        fill = self._shown_fill()
 
         # Lit from above: lighter at the top edge, darker at the bottom.
         gradient = QLinearGradient(rect.topLeft(), rect.bottomLeft())
-        gradient.setColorAt(0.0, self._fill.lighter(116))
-        gradient.setColorAt(0.5, self._fill)
-        gradient.setColorAt(1.0, self._fill.darker(112))
+        gradient.setColorAt(0.0, fill.lighter(116))
+        gradient.setColorAt(0.5, fill)
+        gradient.setColorAt(1.0, fill.darker(112))
         painter.fillRect(rect, gradient)
-        painter.setPen(QPen(self._fill.darker(130), 1))
+        painter.setPen(QPen(fill.darker(130), 1))
         painter.drawRect(rect)
         painter.setPen(QPen(QColor(255, 255, 255, 70), 1))
         painter.drawLine(int(rect.left() + 1), int(rect.top() + 1), int(rect.right() - 1), int(rect.top() + 1))

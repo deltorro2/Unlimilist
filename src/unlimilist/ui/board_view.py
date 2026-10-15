@@ -15,7 +15,7 @@ _STRETCH = {Stage.INBOX: 5, Stage.IN_PROCESS: 5, Stage.DONE: 3}
 class BoardView(QWidget):
     cardClicked = Signal(str)
     cardMenuRequested = Signal(str, QPoint)
-    taskAdded = Signal()
+    taskAdded = Signal(str)  # the new Task's id
     taskDropped = Signal(str, object, object, int, QPoint)
 
     def __init__(self, board: Board, parent=None):
@@ -52,6 +52,14 @@ class BoardView(QWidget):
         """Every card on the Board."""
         return [card for column in self._columns.values() for card in column.cards()]
 
+    def highlight(self, task_id: str) -> None:
+        """Show where a Task that was just created or moved landed. Only one card is highlighted at a time."""
+        for card in self.cards():
+            card.stop_highlight()
+        for column in self._columns.values():
+            if column.reveal(task_id):
+                return
+
     def show_placeholders(self, count: int = 4) -> None:
         for column in self._columns.values():
             column.show_placeholders(count)
@@ -71,7 +79,7 @@ class BoardView(QWidget):
         title = self.quick_add.text().strip()
         if not title:
             return
-        self._board.add_task(title)
+        task = self._board.add_task(title)
         self.quick_add.clear()
         self.refresh()
-        self.taskAdded.emit()
+        self.taskAdded.emit(task.id)

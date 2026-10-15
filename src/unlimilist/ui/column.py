@@ -1,6 +1,6 @@
 """A Column on the Board: one Stage, its Someday cards aligned left and Time-limited cards aligned right."""
 
-from PySide6.QtCore import QPoint, Qt, Signal
+from PySide6.QtCore import QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from unlimilist.domain import LaneKind, Stage, Task, Urgency
@@ -13,6 +13,7 @@ _BOTTOM_INDEX = 998
 _FILTERED_REORDER_HINT = "Clear the Tag filter to reorder"
 _CARD_SHARE = 3  # a card takes 3 parts of 4, i.e. 75% of the Column width
 _GAP_SHARE = 1
+_REVEAL_MARGIN = 24  # room left above or below a card the Column jumps to
 
 _DROP_HINTS = {
     LaneKind.SOMEDAY: "Drop as Someday",
@@ -76,6 +77,10 @@ class ColumnWidget(QFrame):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setWidget(self._container)
+        self._scroll = scroll
+        self._revealing: str | None = None
+        scroll.verticalScrollBar().rangeChanged.connect(self._scroll_to_revealed)
+        scroll.verticalScrollBar().actionTriggered.connect(self._stop_revealing)  # the user scrolled
 
         self._body = QFrame()
         self._body.setObjectName("lane")
@@ -102,6 +107,35 @@ class ColumnWidget(QFrame):
     def cards(self) -> list[CardWidget]:
         """Cards in the order shown, top to bottom."""
         return list(self._cards)
+
+    def reveal(self, task_id: str) -> bool:
+        """Highlight the Task's card, and jump to it if it is out of view. False if it isn't shown here."""
+        card = self._card(task_id)
+        if card is None:
+            return False
+        card.highlight()
+        # The cards were just rebuilt: Qt shows and lays them out over its next turns, and the Column keeps
+        # growing (a scrollbar appears, titles rewrap). So the jump is aimed again each time the scroll range
+        # changes, until the highlight ends or the user scrolls.
+        self._revealing = task_id
+        QTimer.singleShot(0, self, self._scroll_to_revealed)
+        return True
+
+    def scroll_position(self) -> int:
+        return self._scroll.verticalScrollBar().value()
+
+    def _scroll_to_revealed(self, *_) -> None:
+        card = self._card(self._revealing) if self._revealing else None
+        if card is None or not card.is_highlighted():
+            self._revealing = None
+            return
+        self._scroll.ensureWidgetVisible(card.parentWidget(), 0, _REVEAL_MARGIN)
+
+    def _stop_revealing(self, *_) -> None:
+        self._revealing = None
+
+    def _card(self, task_id: str) -> CardWidget | None:
+        return next((c for c in self._cards if c.task.id == task_id), None)
 
     def show_placeholders(self, count: int) -> None:
         """Grey tiles standing in for cards while the Tasks load; set_tasks replaces them."""

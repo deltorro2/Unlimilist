@@ -727,7 +727,7 @@ def test_creating_a_task_in_the_dialog_clears_the_tag_filter_even_if_it_matches(
     assert not window.sidebar.clear_button.isEnabled()
 
 
-def test_a_task_edited_out_of_the_filter_just_disappears(qtbot, window, tagged, monkeypatch):
+def test_a_task_edited_out_of_the_filter_clears_the_filter_and_is_highlighted(qtbot, window, tagged, monkeypatch):
     window.refresh()
     click_bubble(qtbot, window, "home")
     code = next(c.task for c in column_cards(window, Stage.INBOX) if c.task.title == "Code")
@@ -740,8 +740,8 @@ def test_a_task_edited_out_of_the_filter_just_disappears(qtbot, window, tagged, 
     monkeypatch.setattr(TaskDialog, "exec", drop_home)
     window.open_task(code.id)
 
-    assert card_titles(window, Stage.INBOX) == ["1. Plan"]
-    assert window.sidebar.clear_button.text() == "✕ Clear (1)"
+    assert not window.sidebar.clear_button.isEnabled()
+    assert [c.task.title for c in column_cards(window, Stage.INBOX) if c.is_highlighted()] == ["Code"]
 
 
 def test_a_selected_tag_that_no_task_has_any_more_drops_out_of_the_filter(qtbot, window, tagged, monkeypatch):

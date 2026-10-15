@@ -117,6 +117,7 @@ class TaskDialog(QDialog):
         super().__init__(parent)
         self._board = board
         self._task = task
+        self.task_id: str | None = task.id if task else None  # set to the new Task's id once it is saved
         self._require_date = require_date
         self.setObjectName("taskDialog")
         self.setStyleSheet(STYLESHEET)
@@ -360,7 +361,7 @@ class TaskDialog(QDialog):
             if self._task:
                 self._board.edit_task(self._task.id, **fields)
             else:
-                self._board.add_task(**fields)
+                self.task_id = self._board.add_task(**fields).id
         except InvalidTask as error:
             self.error_label.setText(str(error))
             return

@@ -184,6 +184,9 @@ class Board:
     def task(self, task_id: str) -> Task:
         return self._tasks[task_id]
 
+    def has_task(self, task_id: str) -> bool:
+        return task_id in self._tasks
+
     def urgency(self, task_id: str) -> Urgency:
         task = self._tasks[task_id]
         today = self._clock().date()

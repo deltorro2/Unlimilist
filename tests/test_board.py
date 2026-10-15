@@ -584,3 +584,13 @@ def test_only_inbox_tasks_can_be_duplicated(board):
 
     with pytest.raises(DuplicateRefused):
         board.duplicate_task(busy.id)
+
+
+def test_has_task_is_false_once_the_task_is_deleted():
+    board = Board()
+    task = board.add_task("A")
+    assert board.has_task(task.id)
+
+    board.delete_task(task.id)
+
+    assert not board.has_task(task.id)

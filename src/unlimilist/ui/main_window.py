@@ -32,6 +32,7 @@ _TEN_MINUTES_MS = 10 * 60 * 1000
 _APP_NAME = "UnlimiList"
 _VERSION = ".".join(__version__.split(".")[:2])  # "1.4.0" is shown as "1.4"
 _DEFAULT_SIZE = (1500, 950)
+_TEST_TAG = "TEST"  # shown after the version in a test build
 _DELETE_TEXT = "Delete Task"
 _DELETE_SELECT_TEXT = "Select Tasks in Inbox or Done"
 _DELETE_CONFIRM_TEXT = "Delete"
@@ -45,13 +46,15 @@ class MainWindow(QMainWindow):
         warnings: list[str] | None = None,
         parent=None,
         settings_store: SettingsStore | None = None,
+        test_build: bool = False,
     ):
         super().__init__(parent)
         self._board = board
+        self._test_build = test_build
         # Without a store (as in tests) the settings start at their defaults and are not saved.
         self._settings_store = settings_store
         self._settings = settings_store.load() if settings_store else Settings()
-        self.setWindowTitle(f"{_APP_NAME} {_VERSION}")
+        self.setWindowTitle(f"{_APP_NAME} {_VERSION}" + (f" {_TEST_TAG}" if test_build else ""))
         self.setWindowIcon(app_icon())
         self._open_at_default_size()
 
@@ -124,7 +127,7 @@ class MainWindow(QMainWindow):
 
     def _build_title(self) -> QWidget:
         """The app's name, its L in a red ring, then the version in red."""
-        self.app_title = AppTitle(_APP_NAME, _VERSION)
+        self.app_title = AppTitle(_APP_NAME, _VERSION, tag=_TEST_TAG if self._test_build else None)
         self.app_title.setObjectName("appTitle")
 
         title = QWidget()

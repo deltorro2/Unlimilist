@@ -85,7 +85,7 @@ uv sync                              # Python 3.13 + runtime and dev dependencie
 ## Run and test
 
 ```sh
-uv run python -m unlimilist          # run from source, against your real data folder
+uv run python -m unlimilist          # run from source: uses the test folder, never your real Tasks
 uv run pytest                        # all tests: the Board domain plus pytest-qt UI tests
 ```
 
@@ -100,9 +100,10 @@ src/unlimilist/
   store.py         one Markdown file per Task (load, save, delete)
   settings.py      settings.json: the user's settings, such as the card font size
   app.py           startup, styles, the data folder
+  data_folders.py  which Tasks folder a run reads: tasks (normal build) or test
   ui/              the Qt widgets: main window, Columns, cards, Task dialog, Settings, sidebar, loading card
 tests/             test_board.py (domain), test_ui.py, test_settings.py, test_highlight.py, test_fold_done.py,
-                   test_loading.py, test_delete_and_duplicate.py
+                   test_loading.py, test_delete_and_duplicate.py, test_data_folders.py
 scripts/           build_app.sh, build_dmg.sh, make_test_tasks.py, readme_screenshots.py
 docs/adr/          architecture decision records
 CONTEXT.md         the glossary: the words the code and the UI use
@@ -111,9 +112,16 @@ CONTEXT.md         the glossary: the words the code and the UI use
 ## Build
 
 ```sh
-./scripts/build_app.sh               # dist/Unlimilist.app
-./scripts/build_dmg.sh               # the app, then dist/Unlimilist-<version>.dmg
+./scripts/build_app.sh               # dist/Unlimilist.app: the normal build, reads your real Tasks
+./scripts/build_dmg.sh               # the normal app, then dist/Unlimilist-<version>.dmg
+./scripts/build_app.sh --test        # dist/Unlimilist Test.app: for manual testing, reads the test folder
 ```
+
+- **Normal or test:** only a packaged normal build reads your real Tasks.
+  - The test build reads the `test` folder and shows an orange **TEST** tag after the version.
+  - It has its own bundle id (`com.unlimilist.app.test`), so it can sit beside the real app and run at the same time.
+  - Each test build refreshes the test Tasks in its folder.
+  - It never gets a DMG and is never released. Running from source behaves like the test build.
 
 - **App:** `build_app.sh` stamps the bundle with the app version and ad-hoc signs it, so it runs on the Mac that built it. On Windows or Linux it builds a plain executable folder instead.
 - **DMG:** shows the app beside an Applications shortcut. The layout is in `scripts/dmg_settings.py` and is written by dmgbuild, so building needs no Finder permissions.
@@ -122,13 +130,13 @@ CONTEXT.md         the glossary: the words the code and the UI use
 
 ## Data
 
-Each Task is one Markdown file in the app-data folder:
+Each Task is one Markdown file in the app-data folder: in `tasks` for the normal build, and in `test` for the test build and runs from source.
 
-| OS | Folder |
+| OS | App-data folder |
 |---|---|
-| macOS | `~/Library/Application Support/Unlimilist/tasks` |
-| Windows | `%APPDATA%\Unlimilist\tasks` |
-| Linux | `~/.local/share/Unlimilist/tasks` |
+| macOS | `~/Library/Application Support/Unlimilist/` |
+| Windows | `%APPDATA%\Unlimilist\` |
+| Linux | `~/.local/share/Unlimilist/` |
 
 ```markdown
 ---
@@ -154,15 +162,17 @@ Send the receipts #finance
 
 - The folder is read once, when the app starts. Hand edits are welcome while the app is closed; a broken file is skipped with a warning in the status bar.
 - A deleted Task's file is renamed to end in `-deleted` and never loaded again. Rename it back to restore the Task.
-- Your settings, such as the card font size, are kept in `settings.json` next to the `tasks` folder. Delete it to go back to the defaults.
+- Your settings, such as the card font size, are kept in `settings.json` next to the `tasks` folder, shared by both builds. Delete it to go back to the defaults.
 - To back up, copy the `Unlimilist` folder.
 
-**Test data.** To fill the folder with 26 made-up Tasks that exercise every feature, beside your own Tasks, quit the app and run:
+**Test data.** The test folder holds 26 made-up Tasks that exercise every feature; `build_app.sh --test` refreshes them. To refresh them by hand, quit the test app and run:
 
 ```sh
-uv run python scripts/make_test_tasks.py            # add the test Tasks (manual-test-NN.md)
+uv run python scripts/make_test_tasks.py            # add or refresh the test Tasks (manual-test-NN.md) in test/
 uv run python scripts/make_test_tasks.py --remove   # remove them again
 ```
+
+Other Tasks you create while testing stay in the test folder until you delete them.
 
 ## Docs
 

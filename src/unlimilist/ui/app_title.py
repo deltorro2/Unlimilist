@@ -1,4 +1,5 @@
-"""The app's name in the toolbar: "UnlimiList" in bold, its L inside a thin red ring, then the version in red."""
+"""The app's name in the toolbar: "UnlimiList" in bold, its L inside a thin red ring, then the version in red,
+and in a test build an orange "TEST" tag."""
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPen
@@ -13,17 +14,22 @@ _RING_WIDTH_TO_DIAMETER = 0.045
 _MARGIN = 2
 _GAP_TO_CAP = 0.18  # clear space between the ring and the letters beside it
 _MIN_GAP = 2.5
+_TAG = QColor("#F57C00")  # a test build's tag: orange, so it never passes for the real app
+_TAG_PIXELS = 11
+_TAG_PADDING = 5
 
 
 class AppTitle(QWidget):
-    def __init__(self, name: str, version: str, ringed_letter: str = "L", parent=None):
+    def __init__(self, name: str, version: str, ringed_letter: str = "L", parent=None, tag: str | None = None):
         super().__init__(parent)
         self._name = name
         self._version = version
+        self._tag = tag
         index = name.index(ringed_letter)
         self._before, self._letter, self._after = name[:index], name[index], name[index + 1 :]
-        self.setAccessibleName(f"{name} {version}")
-        self.setToolTip(f"{name} {version}")
+        label = f"{name} {version}" + (f" {tag}" if tag else "")
+        self.setAccessibleName(label)
+        self.setToolTip(label)
 
         self._name_font = QFont(self.font())
         self._name_font.setPixelSize(_NAME_PIXELS)
@@ -31,6 +37,9 @@ class AppTitle(QWidget):
         self._version_font = QFont(self._name_font)
         self._version_font.setPixelSize(_VERSION_PIXELS)
         self._version_font.setWeight(QFont.Weight.Bold)
+        self._tag_font = QFont(self._name_font)
+        self._tag_font.setPixelSize(_TAG_PIXELS)
+        self._tag_font.setWeight(QFont.Weight.Bold)
         self._layout()
         self.setFixedSize(self.sizeHint())
 
@@ -45,6 +54,12 @@ class AppTitle(QWidget):
 
     def ring_width(self) -> float:
         return self._pen_width
+
+    def tag(self) -> str | None:
+        return self._tag
+
+    def tag_rect(self) -> QRectF:
+        return QRectF(self._tag_box)
 
     def version_rect(self) -> QRectF:
         return QRectF(self._version_box)
@@ -81,7 +96,18 @@ class AppTitle(QWidget):
         self._version_x = x
         version_width = version.horizontalAdvance(self._version)
         self._version_box = QRectF(x, self._baseline - version.capHeight(), version_width, version.capHeight())
-        x += version_width + _MARGIN
+        x += version_width
+        self._tag_box = QRectF()
+        if self._tag:
+            tag = QFontMetricsF(self._tag_font)
+            width = tag.horizontalAdvance(self._tag) + 2 * _TAG_PADDING
+            box_height = tag.capHeight() + 2 * _TAG_PADDING * 0.7
+            x += gap * 1.5
+            # Level with the version's capitals.
+            middle = self._baseline - version.capHeight() / 2
+            self._tag_box = QRectF(x, middle - box_height / 2, width, box_height)
+            x += width
+        x += _MARGIN
         self._size = QSize(int(x + 1), int(height + 1))
 
     def paintEvent(self, event):
@@ -103,6 +129,15 @@ class AppTitle(QWidget):
         painter.setFont(self._version_font)
         painter.setPen(_RED)
         painter.drawText(QPointF(self._version_x, self._baseline), self._version)
+
+        if self._tag:
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(_TAG)
+            radius = self._tag_box.height() / 2
+            painter.drawRoundedRect(self._tag_box, radius, radius)
+            painter.setFont(self._tag_font)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.drawText(self._tag_box, Qt.AlignmentFlag.AlignCenter, self._tag)
         painter.end()
 
 

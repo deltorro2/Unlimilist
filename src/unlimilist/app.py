@@ -7,7 +7,10 @@ from PySide6.QtCore import QStandardPaths
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
+import unlimilist
+from unlimilist import data_folders
 from unlimilist.board import Board
+from unlimilist.data_folders import is_test_build
 from unlimilist.settings import SettingsStore
 from unlimilist.ui.icons import app_icon
 from unlimilist.ui.main_window import MainWindow
@@ -94,8 +97,12 @@ def app_data_folder() -> Path:
     return Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
 
 
+def test_build() -> bool:
+    return is_test_build(getattr(sys, "frozen", False), Path(unlimilist.__file__).resolve().parent)
+
+
 def tasks_folder() -> Path:
-    return app_data_folder() / "tasks"
+    return data_folders.tasks_folder(app_data_folder(), test_build())
 
 
 def settings_file() -> Path:
@@ -111,7 +118,8 @@ def main() -> int:
     app.setStyleSheet(STYLESHEET)
 
     # The window opens at once; the Tasks load in the background behind the loading card.
-    window = MainWindow(Board(), settings_store=SettingsStore(settings_file()))
+    # Both builds share the settings; only the Tasks folder differs.
+    window = MainWindow(Board(), settings_store=SettingsStore(settings_file()), test_build=test_build())
     window.show()
     window.load_from(tasks_folder())
     return app.exec()

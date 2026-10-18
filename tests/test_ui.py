@@ -399,6 +399,18 @@ def test_toolbar_shows_the_app_name_with_its_version(window):
     assert (title.name(), title.version()) == ("UnlimiList", "1.9")
     assert title.accessibleName() == "UnlimiList 1.9"
     assert window.windowTitle() == "UnlimiList 1.9"
+    assert title.tag() is None
+
+
+def test_a_test_build_shows_test_after_the_version(qtbot, board):
+    window = MainWindow(board, test_build=True)
+    qtbot.addWidget(window)
+    title = window.app_title
+
+    assert title.tag() == "TEST"
+    assert title.accessibleName() == "UnlimiList 1.9 TEST"
+    assert window.windowTitle() == "UnlimiList 1.9 TEST"
+    assert title.tag_rect().left() > title.version_rect().right()
 
 
 def test_column_shows_the_interleaved_order(window, board):

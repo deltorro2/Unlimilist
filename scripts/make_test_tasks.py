@@ -1,10 +1,11 @@
-"""Fills the app's data folder with made-up Tasks for testing by hand, beside your own Tasks.
+"""Fills the test folder with made-up Tasks for testing by hand: the folder the test build reads.
 
     uv run python scripts/make_test_tasks.py            # add (or refresh) the test Tasks
     uv run python scripts/make_test_tasks.py --remove   # delete them again
     uv run python scripts/make_test_tasks.py --folder /some/dir
 
-Every test Task is a file named manual-test-NN.md, so your own Task files are never touched. Dates are
+The default folder is ~/Library/Application Support/Unlimilist/test (the test build's), never your real tasks
+folder. Every test Task is a file named manual-test-NN.md, so other Tasks you made while testing stay. Dates are
 relative to today, so Overdue, Start passed and Due soon always show. Quit the app before running this:
 the app reads the folder when it starts.
 """
@@ -48,7 +49,7 @@ MANY_TAGS = " ".join(
 
 def default_folder() -> Path:
     QCoreApplication.setApplicationName("Unlimilist")  # the same folder the app uses
-    return Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)) / "tasks"
+    return Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)) / "test"
 
 
 def test_tasks(today: date) -> list[dict]:
@@ -138,7 +139,7 @@ def remove(folder: Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--folder", type=Path, help="the tasks folder (default: the app's data folder)")
+    parser.add_argument("--folder", type=Path, help="the tasks folder (default: the test build's folder)")
     parser.add_argument("--remove", action="store_true", help="delete the test Tasks instead of adding them")
     options = parser.parse_args()
     folder = options.folder or default_folder()

@@ -1,9 +1,10 @@
-"""Draws the README screenshots from a synthetic Board, so your own Tasks are never shown.
+"""Draws the README screenshots from a synthetic Board and Notebook, so your own Tasks and Notes are never shown.
 
     uv run python scripts/readme_screenshots.py
 
-Writes docs/board.png, docs/board-filtered.png and docs/task-dialog.png. The Board lives in memory only, and its clock is
-pinned so every Urgency (Due soon, Overdue, Start passed) shows up the same way on every run.
+Writes docs/board.png, docs/board-filtered.png, docs/task-dialog.png, docs/notebook.png, docs/notebook-search.png and
+docs/note.png. The Board and Notebook live in memory only, and their clocks are pinned so every Urgency (Due soon,
+Overdue, Start passed) and every date shows up the same way on every run.
 """
 
 import sys
@@ -19,6 +20,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from unlimilist import app as unlimilist_app  # noqa: E402
 from unlimilist.board import Board  # noqa: E402
 from unlimilist.domain import Activity, Stage  # noqa: E402
+from unlimilist.notebook import Notebook, NoteType  # noqa: E402
 from unlimilist.ui.main_window import MainWindow  # noqa: E402
 from unlimilist.ui.task_dialog import TaskDialog  # noqa: E402
 
@@ -89,6 +91,56 @@ def synthetic_board() -> tuple[Board, str]:
     return board, showcase.id
 
 
+LISBON = """# Lisbon, five days
+
+The plan for **May**: slow mornings, one big sight a day, and *no* taxis.
+
+## Places
+
+- Alfama and tram 28, early, before the crowds
+- Belém, for the tower and the `pastéis`
+- Sintra on a weekday
+
+## Before we go
+
+- [x] Passports
+- [x] Book the flat near Graça
+- [ ] Travel insurance
+
+| Day | Plan |
+| --- | --- |
+| Mon | Alfama, fado in the evening |
+| Tue | Belém and the river |
+| Wed | Sintra |
+
+> Ask Ana about the restaurant with the blue tiles.
+
+[Visit Lisboa](https://www.visitlisboa.com)
+"""
+
+
+def synthetic_notebook() -> tuple[Notebook, str]:
+    now = [datetime.combine(TODAY - timedelta(days=12), datetime.min.time()).replace(hour=8)]
+
+    def clock() -> datetime:
+        now[0] += timedelta(hours=5, minutes=17)
+        return now[0]
+
+    notebook = Notebook(clock=clock)
+    add = notebook.create
+    add("Reading list", "- Designing Data-Intensive Applications\n- The Overstory", tags=("reading",))
+    add("Lisbon hotel shortlist", "Graça, Alfama or Príncipe Real.", tags=("travel",))
+    add("Client X kickoff notes", "Goals, budget, the hotel booking for the team.", tags=("client-x", "work"))
+    add("Wi-Fi and alarm codes", "Router: …\nAlarm: …", tags=("home",), note_type=NoteType.SECURED, password="demo")
+    add("Garden plan", "Tomatoes along the fence, herbs by the door.", tags=("garden", "home"))
+    add("", "Ran 5 km along the river. Slept well.", tags=("health",))  # a Daily note
+    add("Release 2.0 checklist", "- [ ] Screenshots\n- [ ] DMG\n- [ ] Notes", tags=("release", "work"))
+    lisbon = add("Trip to Lisbon", LISBON, tags=("travel", "family"))
+    for title in ("Reading list", "Garden plan"):
+        notebook.mark_opened(next(n.id for n in notebook.notes() if n.title == title))
+    return notebook, lisbon.id
+
+
 def settle(app: QApplication) -> None:
     for _ in range(30):
         app.processEvents()
@@ -111,7 +163,8 @@ def main() -> int:
     board, showcase_id = synthetic_board()
     out = ROOT / "docs"
 
-    window = MainWindow(board)
+    notebook, lisbon_id = synthetic_notebook()
+    window = MainWindow(board, notebook=notebook)
     window.resize(1500, 950)
     window.show()
     settle(app)
@@ -129,8 +182,24 @@ def main() -> int:
     dialog.title_edit.clearFocus()
     settle(app)
     save(dialog, out / "task-dialog.png")
+    dialog.close()
 
-    print(f"Wrote board.png, board-filtered.png and task-dialog.png in {out}")
+    window.show_notebook()
+    settle(app)
+    save(window, out / "notebook.png")
+
+    notes = window.notebook_view
+    notes.search_field.setText("lisbon hotel")
+    notes.apply_search("lisbon hotel")
+    settle(app)
+    save(window, out / "notebook-search.png")
+    notes.clear_search()
+
+    notes.open_note(lisbon_id)
+    settle(app)
+    save(window, out / "note.png")
+
+    print(f"Wrote the Board, Task dialog and Notebook screenshots in {out}")
     return 0
 
 

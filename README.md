@@ -23,7 +23,7 @@
 
 You juggle many activities, and each one throws off Tasks. Some have hard deadlines; most don't. You work on several at once, priorities shift every day, and every Task gathers its own phone numbers, links and snippets.
 
-Jira, Todoist and TickTick do a thousand things you'll never use. Trello does too little. **UnlimiList does the few things that matter, and does them well:** a clear Board, an honest order of what's next, and everything you need for a Task right inside it. No account, no cloud, no internet required.
+Jira, Todoist and TickTick do a thousand things you'll never use. Trello does too little. **UnlimiList does the few things that matter, and does them well:** a clear Board, an honest order of what's next, everything you need for a Task right inside it, and a Notebook for everything that isn't a Task. No account, no cloud, no internet required.
 
 ## What you get
 
@@ -52,6 +52,24 @@ Jira, Todoist and TickTick do a thousand things you'll never use. Trello does to
 <p align="center">
   <img src="docs/task-dialog.png" width="620" alt="The Task dialog: Activity, Details with Subtasks, Usable data, dates and Priority">
 </p>
+
+### A Notebook for everything that isn't a Task
+
+![The Notebook: every Note in one table](docs/notebook.png)
+
+Write a Note in one line with Quick note, or press **＋ New Note** for the full editor. Import Markdown, text, CSV, Word or PDF files, and they become Markdown. Notes share their Tags with Tasks, so one Tag in the sidebar shows both.
+
+### Read it rendered, write it in Markdown
+
+![A Note in View mode](docs/note.png)
+
+Each Note opens in View mode, rendered with headings, lists, checkboxes, tables and links. Switch to **Edit** to change the Markdown, with colouring as you type and a cheat sheet behind the ⓘ. Edits save themselves. Make a Note **Secured**, and its text is encrypted with your Notebook password.
+
+### Find it again
+
+![A Notebook search: exact matches above partial ones](docs/notebook-search.png)
+
+Type in **Search Notes** (⌘F): what's found turns green as you type. Press Enter to see the Notes that hold the whole text first, and below them the Notes that hold some of its words.
 
 ## Get started
 
@@ -211,7 +229,7 @@ Other Tasks and Notes you create while testing stay in the test folders until yo
 
 - [CONTEXT.md](CONTEXT.md) is the glossary: Task, Stage, Lane, Someday, Time-limited, Tag, Subtask and more. Use these words in code and UI.
 - [docs/adr](docs/adr) records the decisions that would surprise a newcomer, e.g. why Tags live in the Details text.
-- The screenshots are drawn from a made-up Board, never from real Tasks. Redraw them after a UI change with `uv run python scripts/readme_screenshots.py`.
+- The screenshots are drawn from a made-up Board and Notebook, never from real Tasks or Notes. Redraw them after a UI change with `uv run python scripts/readme_screenshots.py`.
 
 ## Workflow and releases
 

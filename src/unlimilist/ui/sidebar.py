@@ -1,4 +1,4 @@
-"""The sidebar: the views ("Everything"), then the Tags as bubbles that make up the Tag filter."""
+"""The sidebar: the views (Tasks and Notebook), then the Tags as bubbles that make up the Tag filter."""
 
 import html
 
@@ -48,7 +48,8 @@ class TagBubble(QLabel):
 class Sidebar(QFrame):
     tagClicked = Signal(str)  # the Tag's key, i.e. its case-folded name
     clearClicked = Signal()
-    everythingClicked = Signal()
+    tasksClicked = Signal()
+    notebookClicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -59,14 +60,13 @@ class Sidebar(QFrame):
         self.views.setObjectName("sidebar")
         self.views.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.views.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        everything = QListWidgetItem("Everything")
-        self.views.addItem(everything)
-        placeholder = QListWidgetItem("TBD")
-        placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
-        self.views.addItem(placeholder)
-        self.views.setCurrentItem(everything)
+        self._tasks_item = QListWidgetItem("Tasks")
+        self._notebook_item = QListWidgetItem("Notebook")
+        self.views.addItem(self._tasks_item)
+        self.views.addItem(self._notebook_item)
+        self.views.setCurrentItem(self._tasks_item)
         self.views.setFixedHeight(96)
-        self.views.itemClicked.connect(lambda item: item is everything and self.everythingClicked.emit())
+        self.views.itemClicked.connect(self._view_clicked)
 
         separator = QFrame()
         separator.setObjectName("tagSeparator")
@@ -107,6 +107,16 @@ class Sidebar(QFrame):
 
         self._bubbles: list[TagBubble] = []
         self.set_tags([], frozenset())
+
+    def show_view(self, notebook: bool) -> None:
+        """Mark which view is on screen."""
+        self.views.setCurrentItem(self._notebook_item if notebook else self._tasks_item)
+
+    def _view_clicked(self, item: QListWidgetItem) -> None:
+        if item is self._tasks_item:
+            self.tasksClicked.emit()
+        elif item is self._notebook_item:
+            self.notebookClicked.emit()
 
     def tag_bubbles(self) -> list[TagBubble]:
         return list(self._bubbles)

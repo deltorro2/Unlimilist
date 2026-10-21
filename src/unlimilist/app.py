@@ -11,6 +11,7 @@ import unlimilist
 from unlimilist import data_folders
 from unlimilist.board import Board
 from unlimilist.data_folders import is_test_build
+from unlimilist.notebook_password import KeychainVault, NotebookPassword
 from unlimilist.settings import SettingsStore
 from unlimilist.ui.icons import app_icon
 from unlimilist.ui.main_window import MainWindow
@@ -67,6 +68,41 @@ QDialog#settingsDialog { background: #F4F5F8; }
 QLabel#settingsHeading { font-size: 13px; font-weight: 700; color: #22252B; }
 QLabel#settingsHint { font-size: 12px; color: #6B7080; }
 QFrame#settingsPreview { background: #FFFFFF; border: 1px solid #E2E4EA; border-radius: 8px; }
+QStackedWidget { background: #F4F5F8; }
+QTableWidget#notesTable { background: #FFFFFF; border: 1px solid #E2E4EA; border-radius: 8px; font-size: 13px; color: #1B1B1F; }
+QTableWidget#notesTable::item { padding: 0 8px; border-bottom: 1px solid #EEF0F4; }
+QTableWidget#notesTable QHeaderView::section { background: #F6F7FA; color: #5A5F6B; font-size: 12px; font-weight: 600; border: none; border-bottom: 1px solid #E2E4EA; padding: 6px 8px; }
+QTableWidget#notesTable QHeaderView::section:hover { color: #1A3D8F; }
+QLabel#notesEmpty { color: #8A8F99; font-size: 14px; }
+QWidget#notePage { background: #F4F5F8; }
+QToolButton#noteBack { background: transparent; border: none; color: #2F6FED; font-size: 13px; font-weight: 600; padding: 4px 6px; }
+QToolButton#noteBack:hover { background: #E3EDFF; border-radius: 6px; }
+QLineEdit#noteTitle { background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 3px 6px; font-size: 18px; font-weight: 700; color: #1B1B1F; }
+QLineEdit#noteTitle[editing="true"] { background: #FFFFFF; border: 1px solid #D0D4DC; }
+QLineEdit#noteTitle[editing="true"]:focus { border: 1px solid #2F6FED; }
+QComboBox#noteType { padding: 3px 8px; min-width: 96px; }
+QToolButton#noteDelete { background: transparent; border: none; padding: 4px; border-radius: 6px; }
+QToolButton#noteDelete:hover { background: #FDECEA; }
+QFrame#modeSwitch { background: #E3E6EC; border-radius: 7px; }
+QToolButton#modeButton { background: transparent; border: none; border-radius: 5px; padding: 3px 12px; font-size: 12px; font-weight: 600; color: #5A5F6B; }
+QToolButton#modeButton:checked { background: #FFFFFF; color: #1A3D8F; }
+QLabel#noteDates { color: #8A8F99; font-size: 11px; padding-left: 8px; }
+QLabel#noteTagsHeader { color: #6B7080; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 3px 4px 0 8px; }
+QFrame#noteTag { background: #FFFFFF; border: 1px solid #D3D7E0; border-radius: 9px; }
+QLabel#noteTagText { font-size: 12px; color: #2A2E37; background: transparent; border: none; }
+QToolButton#noteTagRemove { background: transparent; border: none; color: #8A8F99; font-size: 10px; padding: 0 2px; }
+QToolButton#noteTagRemove:hover { color: #E53935; }
+QLineEdit#noteTagField { background: #FFFFFF; border: 1px dashed #C3C7D0; border-radius: 9px; padding: 1px 8px; font-size: 12px; }
+QLineEdit#noteTagField:focus { border: 1px solid #2F6FED; }
+QLineEdit#noteTagField[invalid="true"] { border: 1px solid #E53935; }
+QFrame#noteBody { background: #FFFFFF; border: 1px solid #E2E4EA; border-radius: 8px; }
+QPlainTextEdit#noteEditor, QTextBrowser#noteViewer { background: #FFFFFF; border: none; padding: 10px 14px; font-size: 14px; color: #1B1B1F; }
+QFrame#noteFooter { background: #F6F7FA; border: none; border-top: 1px solid #EEF0F4; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+QLabel#noteFooterHint { color: #9095A0; font-size: 11px; }
+QToolButton#cheatSheetButton { background: transparent; border: none; padding: 2px; }
+QFrame#cheatSheet { background: #FFFFFF; border: 1px solid #D0D4DC; border-radius: 8px; }
+QFrame#cheatSheet QLabel { font-size: 13px; color: #1B1B1F; }
+QLabel#passwordError { color: #D32F2F; font-size: 12px; }
 QLabel#loadingTitle { font-size: 22px; font-weight: 700; color: #22252B; background: transparent; border: none; }
 QLabel#loadingMessage { font-size: 14px; color: #6B7080; background: transparent; border: none; }
 """
@@ -105,6 +141,10 @@ def tasks_folder() -> Path:
     return data_folders.tasks_folder(app_data_folder(), test_build())
 
 
+def notes_folder() -> Path:
+    return data_folders.notes_folder(app_data_folder(), test_build())
+
+
 def settings_file() -> Path:
     return app_data_folder() / "settings.json"
 
@@ -117,11 +157,16 @@ def main() -> int:
     app.setPalette(_light_palette())
     app.setStyleSheet(STYLESHEET)
 
-    # The window opens at once; the Tasks load in the background behind the loading card.
-    # Both builds share the settings; only the Tasks folder differs.
-    window = MainWindow(Board(), settings_store=SettingsStore(settings_file()), test_build=test_build())
+    # The window opens at once; the Tasks and Notes load in the background behind the loading card.
+    # Both builds share the settings and the Notebook password; only the Tasks and Notes folders differ.
+    window = MainWindow(
+        Board(),
+        settings_store=SettingsStore(settings_file()),
+        test_build=test_build(),
+        password=NotebookPassword(KeychainVault()),
+    )
     window.show()
-    window.load_from(tasks_folder())
+    window.load_from(tasks_folder(), notes_folder=notes_folder())
     return app.exec()
 
 

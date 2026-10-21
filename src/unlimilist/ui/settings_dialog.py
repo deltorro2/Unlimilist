@@ -1,4 +1,4 @@
-"""The Settings window: one tab per area. For now only Board view, with the Card font size."""
+"""The Settings window: one tab per area. Board view has the Card font size; Notebook has the Notebook password."""
 
 from datetime import date, datetime, timedelta
 
@@ -52,14 +52,16 @@ class SettingsDialog(QDialog):
     """Changes apply at once: the Board follows the slider and the choice is saved, so there is only Close."""
 
     cardFontSizeChanged = Signal(int)
+    changePasswordClicked = Signal()
 
-    def __init__(self, settings: Settings, parent=None):
+    def __init__(self, settings: Settings, parent=None, has_password: bool = False):
         super().__init__(parent)
         self.setWindowTitle("Settings")
         self.setObjectName("settingsDialog")
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_board_view(settings), "Board view")
+        self.tabs.addTab(self._build_notebook(has_password), "Notebook")
 
         self.close_button = QPushButton("Close")
         self.close_button.setDefault(True)
@@ -116,6 +118,31 @@ class SettingsDialog(QDialog):
         layout.addSpacing(8)
         layout.addWidget(preview_heading)
         layout.addWidget(self._preview, 0, Qt.AlignmentFlag.AlignLeft)
+        layout.addStretch(1)
+        return page
+
+    def _build_notebook(self, has_password: bool) -> QWidget:
+        heading = QLabel("Notebook password")
+        heading.setObjectName("settingsHeading")
+        hint = QLabel(
+            "One password opens every Secured Note. A copy is kept in your Keychain. Changing it encrypts every "
+            "Secured Note again with the new one."
+            if has_password
+            else "There is no Notebook password yet. It is created the first time you make a Note Secured."
+        )
+        hint.setObjectName("settingsHint")
+        hint.setWordWrap(True)
+        self.change_password_button = QPushButton("Change password…")
+        self.change_password_button.setEnabled(has_password)
+        self.change_password_button.clicked.connect(self.changePasswordClicked)
+
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+        layout.addWidget(heading)
+        layout.addWidget(hint)
+        layout.addWidget(self.change_password_button, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addStretch(1)
         return page
 

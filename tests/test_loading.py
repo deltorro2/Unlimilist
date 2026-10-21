@@ -99,7 +99,23 @@ def test_files_that_cannot_be_read_are_reported_once_loaded(qtbot, window, task_
     window.load_from(task_folder, minimum_ms=0)
     qtbot.waitUntil(lambda: loaded(window), timeout=5000)
 
-    assert window.statusBar().currentMessage().startswith("1 task file(s) could not be read")
+    assert window.statusBar().currentMessage().startswith("1 file(s) could not be read")
+
+
+def test_the_notes_load_with_the_tasks_and_broken_note_files_are_reported_too(qtbot, window, task_folder, tmp_path):
+    from unlimilist.note_store import MarkdownNoteStore
+    from unlimilist.notebook import Notebook
+
+    notes = tmp_path / "notes"
+    Notebook(MarkdownNoteStore(notes)).create("Lisbon", "Day 1")
+    (notes / "broken.md").write_text("no front matter", encoding="utf-8")
+
+    window.load_from(task_folder, minimum_ms=0, notes_folder=notes)
+    qtbot.waitUntil(lambda: loaded(window), timeout=5000)
+
+    window.show_notebook()
+    assert [window.notebook_view.row_texts(i)[0] for i in window.notebook_view.shown_ids()] == ["Lisbon"]
+    assert window.statusBar().currentMessage().startswith("1 file(s) could not be read")
 
 
 def test_if_the_data_folder_cannot_be_read_the_card_says_so_and_stays(qtbot, window, tmp_path):

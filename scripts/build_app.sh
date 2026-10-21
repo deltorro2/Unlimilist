@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Builds dist/Unlimilist.app (macOS) or dist/Unlimilist (Windows/Linux): the normal build, reading your real
-# Tasks in .../Unlimilist/tasks.
+# Tasks in .../Unlimilist/tasks and Notes in .../Unlimilist/notes.
 #
 #   ./scripts/build_app.sh --test
 #
-# builds dist/Unlimilist Test.app instead: it reads .../Unlimilist/test, shows TEST in its title, has its own
-# bundle id so it can sit beside the real app, and the test Tasks in its folder are refreshed. It is for manual
-# testing only and never gets a DMG.
+# builds dist/Unlimilist Test.app instead: it reads .../Unlimilist/test and .../Unlimilist/test-notes, shows TEST
+# in its title, has its own bundle id so it can sit beside the real app, and the test Tasks and Notes in its
+# folders are refreshed. It is for manual testing only and never gets a DMG.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -47,4 +47,5 @@ fi
 
 if [[ "$name" == "Unlimilist Test" ]]; then
   uv run python scripts/make_test_tasks.py  # the test folder, never the real tasks folder
+  uv run python scripts/make_test_notes.py  # the test-notes folder, never the real notes folder
 fi

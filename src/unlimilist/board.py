@@ -212,15 +212,7 @@ class Board:
     def suggest_tags(self, typed: str, limit: int = 8) -> list[str]:
         """Tags for what was typed after #: those starting with it first, then those containing its
         letters in order (fuzzy); within each group the most used first, then A to Z."""
-        query = typed.casefold()
-        prefix, fuzzy = [], []
-        for name, count in self.tags():
-            if name.casefold().startswith(query):
-                prefix.append((name, count))
-            elif _contains_in_order(name.casefold(), query):
-                fuzzy.append((name, count))
-        ranked = [name for group in (prefix, fuzzy) for name, _ in sorted(group, key=lambda item: -item[1])]
-        return ranked[:limit]
+        return rank_tags(typed, self.tags(), limit)
 
     def lane(self, stage: Stage, kind: LaneKind | None = None) -> list[Task]:
         if stage == Stage.DONE:
@@ -294,6 +286,20 @@ class Board:
             self._tag_index[key].discard(task.id)
             if not self._tag_index[key]:
                 del self._tag_index[key]
+
+
+def rank_tags(typed: str, tags: Iterable[tuple[str, int]], limit: int = 8) -> list[str]:
+    """The Tags in `tags` (name, count) that fit what was typed: those starting with it first, then those
+    containing its letters in order (fuzzy); within each group the most used first, then A to Z."""
+    query = typed.casefold()
+    prefix, fuzzy = [], []
+    for name, count in sorted(tags, key=lambda item: item[0].casefold()):
+        if name.casefold().startswith(query):
+            prefix.append((name, count))
+        elif _contains_in_order(name.casefold(), query):
+            fuzzy.append((name, count))
+    ranked = [name for group in (prefix, fuzzy) for name, _ in sorted(group, key=lambda item: -item[1])]
+    return ranked[:limit]
 
 
 def _contains_in_order(text: str, letters: str) -> bool:

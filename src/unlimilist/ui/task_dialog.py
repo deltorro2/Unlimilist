@@ -1,5 +1,7 @@
 """The modal dialog that creates or edits a Task."""
 
+from collections.abc import Callable
+
 from PySide6.QtCore import QEvent, QSize, Qt
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
@@ -112,8 +114,16 @@ def _label(text: str, required: bool = False) -> QWidget:
 
 
 class TaskDialog(QDialog):
-    def __init__(self, board: Board, task: Task | None = None, parent=None, require_date: bool = False):
-        """`require_date` is used when a Someday Task is dropped on the Time-limited side of a Column."""
+    def __init__(
+        self,
+        board: Board,
+        task: Task | None = None,
+        parent=None,
+        require_date: bool = False,
+        suggest_tags: Callable[[str], list[str]] | None = None,
+    ):
+        """`require_date` is used when a Someday Task is dropped on the Time-limited side of a Column.
+        `suggest_tags` suggests Tags as they are typed; by default only the Board's own."""
         super().__init__(parent)
         self._board = board
         self._task = task
@@ -129,7 +139,7 @@ class TaskDialog(QDialog):
         self.title_edit = QLineEdit()
         self.title_edit.setObjectName("titleEdit")
         self.title_edit.setPlaceholderText("What needs doing?")
-        self.details_editor = RichTextEditor(subtasks=True, suggest_tags=board.suggest_tags)
+        self.details_editor = RichTextEditor(subtasks=True, suggest_tags=suggest_tags or board.suggest_tags)
         self.usable_data_editor = RichTextEditor("Links, snippets, reference info…")
         self.due_date_field = DateField()
         self.deadline_field = DateField()

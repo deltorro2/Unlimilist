@@ -1,5 +1,5 @@
-"""Where Tasks are read from. Only a packaged normal build reads your real Tasks; a test build (made with
-`build_app.sh --test`) and running from source read the test folder, so manual testing never touches them."""
+"""Where Tasks and Notes are read from. Only a packaged normal build reads your real ones; a test build (made
+with `build_app.sh --test`) and running from source read the test folders, so manual testing never touches them."""
 
 from pathlib import Path
 
@@ -13,3 +13,7 @@ def is_test_build(frozen: bool, package_dir: Path) -> bool:
 
 def tasks_folder(app_data: Path, test: bool) -> Path:
     return app_data / ("test" if test else "tasks")
+
+
+def notes_folder(app_data: Path, test: bool) -> Path:
+    return app_data / ("test-notes" if test else "notes")

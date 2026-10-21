@@ -30,7 +30,7 @@ from unlimilist.secure import WrongPassword
 from unlimilist.ui import password_dialogs
 from unlimilist.ui.icons import icon
 from unlimilist.ui.note_page import NotePage, format_when
-from unlimilist.ui.note_rows import style_rows
+from unlimilist.ui.note_rows import select_row, style_rows
 from unlimilist.ui.search_field import SearchField
 from unlimilist.ui.toast import Toast
 
@@ -95,6 +95,7 @@ class NotebookView(QWidget):
         self._highlighted: str | None = None
         self._strength = 0.0  # how yellow the highlighted row is, 1 to 0
         self._pending_highlight: str | None = None  # shown once the table is back
+        self._selected: str | None = None  # the Note shown last: drawn selected in the list
         self._fade = QVariantAnimation(self)
         self._fade.setStartValue(1.0)
         self._fade.setEndValue(0.0)
@@ -245,6 +246,9 @@ class NotebookView(QWidget):
             notes = [n for n in notes if n.id in exact]
         _fill(self.table, notes)
         _fill(self.partial_table, partial)
+        for table, listed in ((self.table, notes), (self.partial_table, partial)):
+            ids = [n.id for n in listed]
+            select_row(table, ids.index(self._selected) if self._selected in ids else -1)
         if self._highlighted is not None:  # still yellow if it is still listed
             if self._highlighted in self.shown_ids():
                 self._paint_highlight(self._strength)
@@ -360,6 +364,9 @@ class NotebookView(QWidget):
         self.table.scrollToItem(self.table.item(self.shown_ids().index(note_id), TITLE))
         self._hold.start(_HIGHLIGHT_HOLD_MS)
 
+    def selected_id(self) -> str | None:
+        return self._selected
+
     def is_highlighted(self, note_id: str) -> bool:
         return self._highlighted == note_id
 
@@ -419,13 +426,23 @@ class NotebookView(QWidget):
         self._pages.setCurrentWidget(self.note_page)
 
     def show_table(self) -> None:
-        """Back to the table, saving the Note on the page."""
+        """Back to the list as it was (search, Tags, sort), saving the Note on the page. That Note is drawn
+        selected and scrolled into view."""
+        shown = self.note_page.note_id() if self.is_showing_note() else None
         self.leave_note()
+        if shown is not None and self._notebook.has_note(shown):
+            self._selected = shown
         self._pages.setCurrentIndex(0)
         self.refresh()
+        self._scroll_to_selected()
         if self._pending_highlight:
             note_id, self._pending_highlight = self._pending_highlight, None
             self.highlight(note_id)
+
+    def _scroll_to_selected(self) -> None:
+        for table, ids in ((self.table, self.shown_ids()), (self.partial_table, self.partial_ids())):
+            if self._selected in ids:
+                table.scrollToItem(table.item(ids.index(self._selected), TITLE))
 
     def leave_note(self) -> None:
         """Save and close the Note on the page, if any (the table stays where it is)."""

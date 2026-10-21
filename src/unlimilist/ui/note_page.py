@@ -477,9 +477,10 @@ class NotePage(QWidget):
         self.find_bar.field.textEdited.connect(lambda _: self._restart_find())
         body_box.installEventFilter(self)
         self._found: tuple[int, int] | None = None  # (start, end) of the place found last
+        # Esc closes the Find bar if it is open, else goes back to the list (saving, like Back).
         escape = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
         escape.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        escape.activated.connect(self.close_find)
+        escape.activated.connect(self._escape)
         self._show_mode()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -627,6 +628,12 @@ class NotePage(QWidget):
         self._mark_found(None)
         self._find_target().setFocus()
 
+    def _escape(self) -> None:
+        if self.is_finding():
+            self.close_find()
+        else:
+            self.backClicked.emit()
+
     def _find_target(self) -> QTextEdit | QPlainTextEdit:
         return self.editor if self._editing else self.viewer
 
@@ -686,8 +693,8 @@ class NotePage(QWidget):
             self.autosave_timer.stop()
             self._render()
         self._show_mode()
-        if editing:
-            self.editor.setFocus()
+        # The focus goes into the Note, so its keys (Esc, ⌘F) work at once.
+        (self.editor if editing else self.viewer).setFocus()
 
     def _show_mode(self) -> None:
         editing = self._editing

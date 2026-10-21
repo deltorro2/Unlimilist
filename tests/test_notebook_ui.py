@@ -714,3 +714,65 @@ def test_the_row_under_the_mouse_is_tinted_and_its_shade_deepens(qtbot, window):
     assert after[len(after) // 2] != FILL.name()
     assert after[-2:] != before[-2:]  # a deeper shade
     assert row_pixels(window, 0)[len(before) // 2] == FILL.name()  # the others stay as they were
+
+
+# Esc on a shown Note: back to the list, the Note left selected
+
+
+def test_esc_on_a_note_goes_back_to_the_list_with_that_note_selected(qtbot, window):
+    from unlimilist.ui.note_rows import SELECTED_ACCENT
+
+    click_row(qtbot, window, "Groceries")
+
+    qtbot.keyClick(page(window).viewer, Qt.Key.Key_Escape)
+
+    assert view(window).is_showing_table()
+    groceries = note_id(window, "Groceries")
+    assert view(window).selected_id() == groceries
+    table = view(window).table
+    row = view(window).shown_ids().index(groceries)
+    QApplication.processEvents()
+    image = table.viewport().grab().toImage()
+    rect = table.visualItemRect(table.item(row, TITLE))
+    assert image.pixelColor(rect.left() + 1, rect.center().y()).name() == SELECTED_ACCENT.name()
+
+
+def test_esc_in_edit_mode_saves_and_goes_back(qtbot, window):
+    click_row(qtbot, window, "Groceries")
+    page(window).edit_button.click()
+    page(window).editor.setPlainText("- figs")
+
+    qtbot.keyClick(page(window).editor, Qt.Key.Key_Escape)
+
+    assert view(window).is_showing_table()
+    assert window._notebook.note(note_id(window, "Groceries")).body == "- figs"
+
+
+def test_esc_with_the_find_bar_open_only_closes_the_bar(qtbot, window):
+    click_row(qtbot, window, "Lisbon")
+    window.find()
+
+    qtbot.keyClick(page(window).find_bar.field, Qt.Key.Key_Escape)
+
+    assert view(window).is_showing_note() and not page(window).is_finding()
+    qtbot.keyClick(page(window).viewer, Qt.Key.Key_Escape)
+    assert view(window).is_showing_table()
+
+
+def test_going_back_keeps_the_search_and_the_sort(qtbot, window):
+    view(window).sort_by(TITLE)
+    view(window).search_field.setText("milk")
+    view(window).apply_search("milk")
+    click_row(qtbot, window, "Groceries")
+
+    qtbot.keyClick(page(window).viewer, Qt.Key.Key_Escape)
+
+    assert view(window).is_searching() and titles(window) == ["Groceries"]
+    assert view(window).table.horizontalHeader().sortIndicatorSection() == TITLE
+
+
+def test_the_back_button_selects_the_note_too(qtbot, window):
+    click_row(qtbot, window, "Lisbon")
+    page(window).back_button.click()
+
+    assert view(window).selected_id() == note_id(window, "Lisbon")

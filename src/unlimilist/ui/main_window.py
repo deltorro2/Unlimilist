@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import QElapsedTimer, QPoint, Qt, QTimer
-from PySide6.QtGui import QAction, QCursor, QKeySequence
+from PySide6.QtGui import QAction, QCursor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from unlimilist import __version__
 from unlimilist.board import Board, rank_tags
 from unlimilist.domain import LaneKind, Stage, UnfinishedSubtasks
+from unlimilist.note_search import NoteSearch
 from unlimilist.notebook import Notebook
 from unlimilist.notebook_password import MemoryVault, NotebookPassword
 from unlimilist.secure import WrongPassword
@@ -138,6 +139,10 @@ class MainWindow(QMainWindow):
         toolbar.addAction(self.settings_action)
         toolbar.widgetForAction(self.settings_action).setObjectName("settingsButton")
 
+        # ⌘F: the Notebook search, or Find in Note on a shown Note. Nothing on the Board.
+        self.find_shortcut = QShortcut(QKeySequence(QKeySequence.StandardKey.Find), self)
+        self.find_shortcut.activated.connect(self.find)
+
         self._show_view_actions()
         self._show_warnings(warnings or [])
         self.loading_screen: LoadingScreen | None = None
@@ -181,18 +186,18 @@ class MainWindow(QMainWindow):
         self._loader.failed.connect(self._loading_failed)
         self._loader.start()
 
-    def _loaded(self, board: Board, notebook: Notebook | None, warnings: list[str]) -> None:
+    def _loaded(self, board: Board, notes: tuple[Notebook, NoteSearch] | None, warnings: list[str]) -> None:
         wait = max(0, self._minimum_ms - self._loading_started.elapsed())
-        QTimer.singleShot(wait, self, lambda: self._finish_loading(board, notebook, warnings))
+        QTimer.singleShot(wait, self, lambda: self._finish_loading(board, notes, warnings))
 
     def _loading_failed(self, error: str) -> None:
         self.loading_screen.show_error(f"Couldn't open your Tasks: {error}")
 
-    def _finish_loading(self, board: Board, notebook: Notebook | None, warnings: list[str]) -> None:
+    def _finish_loading(self, board: Board, notes: tuple[Notebook, NoteSearch] | None, warnings: list[str]) -> None:
         self._board = board
-        if notebook is not None:
-            self._notebook = notebook
-            self.notebook_view.set_notebook(notebook)
+        if notes is not None:
+            self._notebook, search = notes
+            self.notebook_view.set_notebook(self._notebook, search)
         self._show_warnings(warnings)
         self._set_interactive(True)  # before the cards exist, so there is little to restyle
         self.board_view.set_board(board)
@@ -222,6 +227,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self.notebook_view.save_now()  # a Note being edited is saved as the app quits
+        self.notebook_view.flush_search_index()
         if self._loader is not None:
             self._loader.wait()  # never destroy the loader thread while it runs
         super().closeEvent(event)
@@ -266,9 +272,15 @@ class MainWindow(QMainWindow):
     def current_view(self) -> str:
         return "notebook" if self.views.currentWidget() is self.notebook_view else "tasks"
 
+    def find(self) -> None:
+        if self.current_view() == "notebook":
+            self.notebook_view.find()
+
     def show_tasks(self) -> None:
-        """Back to the Board; a Note being edited is saved and closed. The Tag filter stays."""
+        """Back to the Board; a Note being edited is saved and closed, and the Notebook search ends. The Tag
+        filter stays."""
         self.notebook_view.leave_note()
+        self.notebook_view.clear_search()
         self.notebook_view.show_table()
         self.views.setCurrentWidget(self.board_view)
         self._show_view_actions()

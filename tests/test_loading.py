@@ -115,6 +115,7 @@ def test_the_notes_load_with_the_tasks_and_broken_note_files_are_reported_too(qt
 
     window.show_notebook()
     assert [window.notebook_view.row_texts(i)[0] for i in window.notebook_view.shown_ids()] == ["Lisbon"]
+    assert (notes / ".search-index.json").exists()  # the search index is built while loading
     assert window.statusBar().currentMessage().startswith("1 file(s) could not be read")
 
 

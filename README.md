@@ -39,6 +39,7 @@ Jira, Todoist and TickTick do a thousand things you'll never use. Trello does to
 - 🧹 **Tidy up fast.** Select several Tasks and delete them in one go, or duplicate a Task to reuse it. Deleted files are kept, so nothing is lost by mistake.
 - 🗄 **Fold Done away.** A switch under Done folds it to a slim strip, so Inbox and In Process get the room; you can still drop Tasks on it to finish them.
 - 📓 **A Notebook beside the Board.** Keep reference notes in Markdown: a sortable table of every Note, a raw-Markdown editor with colouring, and a clean rendered view. Quick-add a note in one line, or import Markdown, text, CSV, Word and PDF files, as new Notes or into the Note you're writing.
+- 🔍 **Find any Note.** Search Titles and texts from the bar beside Quick note (⌘F); exact matches come first, then Notes holding some of the words. Inside a Note, ⌘F finds each place in turn.
 - 🔐 **Secured Notes.** Encrypt a Note's text with one Notebook password, kept in your Mac's Keychain.
 - 🔠 **Text at a size that suits you.** Pick one of five card font sizes in Settings (the gear, or ⌘,); the Board follows as you slide.
 
@@ -103,6 +104,7 @@ src/unlimilist/
   notebook.py      the Notebook: Notes, Titles, Daily notes, Tags, Secured Notes; no Qt
   note_store.py    one Markdown file per Note
   note_import.py   Markdown, text, CSV, Word and PDF files to Markdown
+  note_search.py   the Notebook search: Exact and Partial matches, and its index file
   secure.py        encrypting a Secured Note's Body (AES-GCM, scrypt)
   notebook_password.py  the Notebook password, checked against the Keychain
   settings.py      settings.json: the user's settings, such as the card font size
@@ -111,7 +113,7 @@ src/unlimilist/
   ui/              the Qt widgets: main window, Columns, cards, Task dialog, Notebook, Show Note, Settings,
                    sidebar, password dialogs, loading card
 tests/             test_board.py (domain), test_notebook.py, test_note_import.py, test_secured_notes.py,
-                   test_ui.py, test_notebook_ui.py, test_settings.py, test_highlight.py, test_fold_done.py,
+                   test_note_search.py, test_ui.py, test_notebook_ui.py, test_note_search_ui.py, test_settings.py, test_highlight.py, test_fold_done.py,
                    test_loading.py, test_delete_and_duplicate.py, test_data_folders.py
 scripts/           build_app.sh, build_dmg.sh, make_test_tasks.py, make_test_notes.py, readme_screenshots.py
 docs/adr/          architecture decision records
@@ -189,6 +191,7 @@ Alfama and tram 28
 
 - The folders are read once, when the app starts. Hand edits are welcome while the app is closed; a broken file is skipped with a warning in the status bar.
 - A deleted Task's or Open Note's file is renamed to end in `-deleted` and never loaded again. Rename it back to restore it. A deleted Secured Note's file is removed for good.
+- The Notebook search keeps a word index of the Open Notes in `.search-index.json` in the notes folder. It is rebuilt if it's missing or out of date, so it's safe to delete. Secured Notes are never in it.
 - The Notebook password is kept only in your Keychain, under "Unlimilist". Without it, Secured Notes can't be read.
 - Your settings, such as the card font size, are kept in `settings.json` next to the `tasks` folder, shared by both builds. Delete it to go back to the defaults.
 - To back up, copy the `Unlimilist` folder.

@@ -95,6 +95,11 @@ class Notebook:
         self._store = store or InMemoryNoteStore()
         self._clock = clock
         self._notes: dict[str, Note] = {n.id: n for n in self._store.load_all()}
+        self._listeners: list[Callable[[str, Note | None], None]] = []
+
+    def subscribe(self, listener: Callable[[str, Note | None], None]) -> None:
+        """Call `listener(note_id, note)` after every change; `note` is None once the Note is deleted."""
+        self._listeners.append(listener)
 
     def notes(self) -> list[Note]:
         """Every Note, the most recently opened or created first."""
@@ -170,6 +175,8 @@ class Notebook:
     def delete(self, note_id: str) -> None:
         note = self._notes.pop(note_id)
         self._store.delete(note)
+        for listener in self._listeners:
+            listener(note_id, None)
 
     def change_password(self, old: str, new: str) -> None:
         """Re-encrypt every Secured Note with the new password. Every one is read first, so if any doesn't open
@@ -211,4 +218,6 @@ class Notebook:
     def _put(self, note: Note) -> Note:
         self._notes[note.id] = note
         self._store.save(note)
+        for listener in self._listeners:
+            listener(note.id, note)
         return note

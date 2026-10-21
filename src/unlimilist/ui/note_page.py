@@ -8,10 +8,12 @@ leaving Edit mode, on leaving the Note, and every five minutes while Edit mode s
 from collections.abc import Callable
 from datetime import datetime
 
-from PySide6.QtCore import QSize, QStringListModel, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QSize, QStringListModel, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
     QFont,
+    QKeySequence,
+    QShortcut,
     QTextCharFormat,
     QTextCursor,
     QTextDocument,
@@ -21,6 +23,8 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QPushButton,
+    QTextEdit,
     QComboBox,
     QCompleter,
     QFrame,
@@ -156,6 +160,42 @@ class CheatSheet(QFrame):
 
     def mousePressEvent(self, event):
         self.close()
+
+
+_FOUND = QColor("#FFE066")  # a found place's background, the yellow of a new card
+
+
+class FindBar(QFrame):
+    """Find in Note: a small bar floating at the top-right of the Body, with the text to find, Next and Cancel."""
+
+    nextClicked = Signal()
+    closeClicked = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("findBar")
+        self.field = QLineEdit()
+        self.field.setObjectName("findField")
+        self.field.setPlaceholderText("Find in Note")
+        self.field.setMinimumWidth(200)
+        self.field.returnPressed.connect(self.nextClicked)
+        self.next_button = QPushButton("Next")
+        self.next_button.setObjectName("findNext")
+        self.next_button.clicked.connect(self.nextClicked)
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setObjectName("findCancel")
+        self.cancel_button.clicked.connect(self.closeClicked)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(6)
+        layout.addWidget(self.field)
+        layout.addWidget(self.next_button)
+        layout.addWidget(self.cancel_button)
+        self.hide()
+
+    def set_not_found(self, not_found: bool) -> None:
+        self.field.setProperty("notFound", not_found)
+        self.field.style().polish(self.field)
 
 
 class _TagBubble(QFrame):
@@ -409,7 +449,7 @@ class NotePage(QWidget):
         footer_layout.addStretch(1)
         footer_layout.addWidget(self.info_button)
 
-        body_box = QFrame()
+        body_box = self._body_box = QFrame()
         body_box.setObjectName("noteBody")
         body_layout = QVBoxLayout(body_box)
         body_layout.setContentsMargins(1, 1, 1, 1)
@@ -429,7 +469,23 @@ class NotePage(QWidget):
         self.autosave_timer = QTimer(self)
         self.autosave_timer.setInterval(AUTOSAVE_MS)
         self.autosave_timer.timeout.connect(self.save)
+
+        # Find in Note, floating over the Body's top-right corner.
+        self.find_bar = FindBar(body_box)
+        self.find_bar.nextClicked.connect(self.find_next)
+        self.find_bar.closeClicked.connect(self.close_find)
+        self.find_bar.field.textEdited.connect(lambda _: self._restart_find())
+        body_box.installEventFilter(self)
+        self._found: tuple[int, int] | None = None  # (start, end) of the place found last
+        escape = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
+        escape.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        escape.activated.connect(self.close_find)
         self._show_mode()
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched is self._body_box and event.type() == QEvent.Type.Resize:
+            self._place_find_bar()
+        return super().eventFilter(watched, event)
 
     def set_notebook(self, notebook: Notebook) -> None:
         self._notebook = notebook
@@ -499,6 +555,7 @@ class NotePage(QWidget):
 
     def close_note(self) -> None:
         """Save, then leave the page empty."""
+        self.close_find()
         self.save()
         self.autosave_timer.stop()
         self._open = False
@@ -525,6 +582,80 @@ class NotePage(QWidget):
         self.editor.ensureCursorVisible()
         self.editor.setFocus()
 
+    # Find in Note
+
+    def open_find(self, text: str | None = None) -> None:
+        """Show the Find bar, starting with `text` if given, ready to type."""
+        if text:
+            self.find_bar.field.setText(text)
+            self._restart_find()
+        self._place_find_bar()
+        self.find_bar.show()
+        self.find_bar.raise_()
+        self.find_bar.field.setFocus()
+        self.find_bar.field.selectAll()
+
+    def is_finding(self) -> bool:
+        return self.find_bar.isVisible()
+
+    def found(self) -> tuple[int, int] | None:
+        """(start, end) of the place found last, in the text on screen."""
+        return self._found
+
+    def find_next(self) -> bool:
+        """Select the next place holding the text, after the last one found; after the last, start at the top."""
+        text = self.find_bar.field.text()
+        target = self._find_target()
+        if not text:
+            return False
+        document = target.document()
+        start = self._found[1] if self._found else 0
+        cursor = document.find(text, start)
+        if cursor.isNull():
+            cursor = document.find(text, 0)
+        self.find_bar.set_not_found(cursor.isNull())
+        if cursor.isNull():
+            self._mark_found(None)
+            return False
+        self._mark_found(cursor)
+        return True
+
+    def close_find(self) -> None:
+        if not self.find_bar.isVisible():
+            return
+        self.find_bar.hide()
+        self._mark_found(None)
+        self._find_target().setFocus()
+
+    def _find_target(self) -> QTextEdit | QPlainTextEdit:
+        return self.editor if self._editing else self.viewer
+
+    def _restart_find(self) -> None:
+        self.find_bar.set_not_found(False)
+        self._mark_found(None)
+
+    def _mark_found(self, cursor: QTextCursor | None) -> None:
+        """Give the found place a yellow background and scroll to it; None clears the mark."""
+        for widget in (self.editor, self.viewer):
+            widget.setExtraSelections([])
+        if cursor is None:
+            self._found = None
+            return
+        self._found = (cursor.selectionStart(), cursor.selectionEnd())
+        target = self._find_target()
+        mark = QTextEdit.ExtraSelection()
+        mark.cursor = cursor
+        mark.format.setBackground(_FOUND)
+        target.setExtraSelections([mark])
+        caret = QTextCursor(cursor)
+        caret.clearSelection()  # the caret goes after the place, so scrolling shows it but nothing is selected
+        target.setTextCursor(caret)
+        target.ensureCursorVisible()
+
+    def _place_find_bar(self) -> None:
+        self.find_bar.adjustSize()
+        self.find_bar.move(self._body_box.width() - self.find_bar.width() - 10, 10)
+
     def show_cheat_sheet(self) -> None:
         self.cheat_sheet = CheatSheet(self)
         self.cheat_sheet.show_above(self.info_button)
@@ -547,6 +678,7 @@ class NotePage(QWidget):
     def _set_mode(self, editing: bool) -> None:
         if self._editing and not editing:
             self.save()
+        self._restart_find()  # the other mode shows other text: start again from the top
         self._editing = editing
         if editing:
             self.autosave_timer.start()

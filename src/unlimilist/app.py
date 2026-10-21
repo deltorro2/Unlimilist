@@ -102,6 +102,14 @@ QLabel#noteFooterHint { color: #9095A0; font-size: 11px; }
 QToolButton#cheatSheetButton { background: transparent; border: none; padding: 2px; }
 QFrame#cheatSheet { background: #FFFFFF; border: 1px solid #D0D4DC; border-radius: 8px; }
 QFrame#cheatSheet QLabel { font-size: 13px; color: #1B1B1F; }
+QLineEdit#noteSearch { background: #FFFFFF; border: 1px solid #D0D4DC; border-radius: 6px; padding: 6px 8px; color: #1B1B1F; }
+QLineEdit#noteSearch:focus { border: 1px solid #2F6FED; }
+QLabel#matchesHeader { color: #5A5F6B; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; padding: 2px 2px 0 2px; }
+QLabel#toast { background: rgba(34, 37, 43, 225); color: #FFFFFF; border-radius: 10px; padding: 10px 22px; font-size: 14px; font-weight: 600; }
+QFrame#findBar { background: #FFFFFF; border: 1px solid #D0D4DC; border-radius: 8px; }
+QLineEdit#findField { border: 1px solid #D0D4DC; border-radius: 5px; padding: 3px 6px; }
+QLineEdit#findField:focus { border: 1px solid #2F6FED; }
+QLineEdit#findField[notFound="true"] { background: #FDECEA; border: 1px solid #E53935; color: #B71C1C; }
 QLabel#passwordError { color: #D32F2F; font-size: 12px; }
 QLabel#loadingTitle { font-size: 22px; font-weight: 700; color: #22252B; background: transparent; border: none; }
 QLabel#loadingMessage { font-size: 14px; color: #6B7080; background: transparent; border: none; }

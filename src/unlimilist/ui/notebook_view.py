@@ -1,5 +1,5 @@
-"""The Notebook: a table of every Note, with Quick add above it. Choosing a Note opens it (Show Note) in place of
-the table."""
+"""The Notebook: a table of every Note, with Quick note and the Notebook search above it. A search splits the table
+in two: Exact matches above Partial matches. Choosing a Note opens it (Show Note) in place of the tables."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -9,6 +9,7 @@ from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
+    QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
@@ -22,12 +23,15 @@ from PySide6.QtWidgets import (
 )
 
 from unlimilist.note_import import FILE_FILTER, ImportRefused, import_file
+from unlimilist.note_search import MIN_CHARS, NoteSearch, SearchResult
 from unlimilist.notebook import Note, Notebook
 from unlimilist.notebook_password import NotebookPassword
 from unlimilist.secure import WrongPassword
 from unlimilist.ui import password_dialogs
 from unlimilist.ui.icons import icon
 from unlimilist.ui.note_page import NotePage, format_when
+from unlimilist.ui.search_field import SearchField
+from unlimilist.ui.toast import Toast
 
 TITLE, CREATED, OPENED, TYPE, SIZE = range(5)
 _HEADERS = ["Title", "Created", "Last opened", "Type", "Size"]
@@ -73,10 +77,16 @@ class NotebookView(QWidget):
         password: NotebookPassword,
         suggest_tags: Callable[[str], list[str]],
         parent=None,
+        search: NoteSearch | None = None,
     ):
         super().__init__(parent)
         self._notebook = notebook
         self._password = password
+        self._search = search or NoteSearch(notebook)
+        self._search.set_secured_reader(self._read_secured)
+        self._secured_searchable = False  # whether the search has read the Secured Notes since the unlock
+        self._search_text: str | None = None  # the Notebook search applied with Enter
+        self._toast: Toast | None = None
         self._tag_filter: frozenset[str] = frozenset()
         self._sort: tuple[int, Qt.SortOrder] | None = None  # None: the default order
         self._highlighted: str | None = None
@@ -97,30 +107,23 @@ class NotebookView(QWidget):
         self.quick_add.setObjectName("quickAdd")
         self.quick_add.setPlaceholderText("＋ Quick note — type it, press Enter")
         self.quick_add.returnPressed.connect(self._quick_add)
+        self.search_field = SearchField()
+        self.search_field.setObjectName("noteSearch")
+        self.search_field.setPlaceholderText("Search Notes")
+        self.search_field.textChanged.connect(self._search_typed)
+        self.search_field.returnPressed.connect(lambda: self.apply_search(self.search_field.text()))
+        self.search_field.escapePressed.connect(self.clear_search)
+        top = QHBoxLayout()
+        top.setSpacing(10)
+        top.addWidget(self.quick_add, 7)  # Quick note keeps 70% of the line
+        top.addWidget(self.search_field, 3)
 
-        self.table = QTableWidget(0, len(_HEADERS))
-        self.table.setObjectName("notesTable")
-        self.table.setHorizontalHeaderLabels(_HEADERS)
-        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.table.setShowGrid(False)
-        self.table.setWordWrap(False)
-        self.table.verticalHeader().hide()
-        self.table.verticalHeader().setDefaultSectionSize(34)
-        self.table.setCursor(Qt.CursorShape.PointingHandCursor)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(TITLE, QHeaderView.ResizeMode.Stretch)
-        for column in (CREATED, OPENED, TYPE, SIZE):
-            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
-        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        header.setSectionsClickable(True)
-        header.setSortIndicatorShown(False)
-        header.sectionClicked.connect(self.sort_by)
-        self.table.cellClicked.connect(lambda row, column: self.open_note(self._row_id(row)))
-        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.table.customContextMenuRequested.connect(self._show_menu)
+        self.table = self._make_table()  # every Note, or a search's Exact matches
+        self.partial_table = self._make_table()  # a search's Partial matches
+        self.exact_label = QLabel("Exact matches")
+        self.partial_label = QLabel("Partial matches")
+        for label in (self.exact_label, self.partial_label):
+            label.setObjectName("matchesHeader")
 
         self.empty_label = QLabel()
         self.empty_label.setObjectName("notesEmpty")
@@ -130,8 +133,11 @@ class NotebookView(QWidget):
         table_layout = QVBoxLayout(table_page)
         table_layout.setContentsMargins(12, 12, 12, 12)
         table_layout.setSpacing(10)
-        table_layout.addWidget(self.quick_add)
+        table_layout.addLayout(top)
+        table_layout.addWidget(self.exact_label)
         table_layout.addWidget(self.table, 1)
+        table_layout.addWidget(self.partial_label)
+        table_layout.addWidget(self.partial_table, 1)
         table_layout.addWidget(self.empty_label, 1)
 
         self.note_page = NotePage(notebook, password, suggest_tags)
@@ -148,16 +154,52 @@ class NotebookView(QWidget):
         layout.addWidget(self._pages)
         self.refresh()
 
-    def set_notebook(self, notebook: Notebook) -> None:
+    def set_notebook(self, notebook: Notebook, search: NoteSearch | None = None) -> None:
         self._notebook = notebook
+        self._search = search or NoteSearch(notebook)
+        self._search.set_secured_reader(self._read_secured)
+        self._secured_searchable = False
         self.note_page.set_notebook(notebook)
         self.refresh()
+
+    def flush_search_index(self) -> None:
+        self._search.flush()
+
+    def _make_table(self) -> QTableWidget:
+        table = QTableWidget(0, len(_HEADERS))
+        table.setObjectName("notesTable")
+        table.setHorizontalHeaderLabels(_HEADERS)
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        table.setShowGrid(False)
+        table.setWordWrap(False)
+        table.verticalHeader().hide()
+        table.verticalHeader().setDefaultSectionSize(34)
+        table.setCursor(Qt.CursorShape.PointingHandCursor)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(TITLE, QHeaderView.ResizeMode.Stretch)
+        for column in (CREATED, OPENED, TYPE, SIZE):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        header.setSectionsClickable(True)
+        header.setSortIndicatorShown(False)
+        header.sectionClicked.connect(self.sort_by)
+        table.cellClicked.connect(lambda row, column: self.open_note(_row_id(table, row)))
+        table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        table.customContextMenuRequested.connect(lambda at: self._show_menu(table, at))
+        return table
 
     # The table
 
     def shown_ids(self) -> list[str]:
-        """The ids of the Notes in the table, top to bottom."""
-        return [self._row_id(row) for row in range(self.table.rowCount())]
+        """The ids of the Notes in the (top) table, top to bottom."""
+        return [_row_id(self.table, row) for row in range(self.table.rowCount())]
+
+    def partial_ids(self) -> list[str]:
+        """The ids of a search's Partial matches, top to bottom."""
+        return [_row_id(self.partial_table, row) for row in range(self.partial_table.rowCount())]
 
     def row_texts(self, note_id: str) -> list[str]:
         row = self.shown_ids().index(note_id)
@@ -179,9 +221,10 @@ class NotebookView(QWidget):
         else:
             order = _FIRST_ORDER[column]
         self._sort = (column, order)
-        header = self.table.horizontalHeader()
-        header.setSortIndicatorShown(True)
-        header.setSortIndicator(column, order)
+        for table in (self.table, self.partial_table):
+            header = table.horizontalHeader()
+            header.setSortIndicatorShown(True)
+            header.setSortIndicator(column, order)
         self.refresh()
 
     def refresh(self) -> None:
@@ -189,51 +232,116 @@ class NotebookView(QWidget):
         if self._sort:
             column, order = self._sort
             notes.sort(key=lambda n: _sort_key(n, column), reverse=order == Qt.SortOrder.DescendingOrder)
-        self.table.setRowCount(len(notes))
-        for row, note in enumerate(notes):
-            cells = [
-                note.title,
-                format_when(note.created_at),
-                format_when(note.opened_at),
-                "",
-                format_size(note.size),
-            ]
-            for column, text in enumerate(cells):
-                item = QTableWidgetItem(text)
-                item.setData(Qt.ItemDataRole.UserRole, note.id)
-                item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                self.table.setItem(row, column, item)
-            self.table.item(row, TITLE).setToolTip(note.title)
-            type_item = self.table.item(row, TYPE)
-            type_item.setIcon(icon("lock" if note.secured else "lock-open", "#3A3D45" if note.secured else "#9095A0"))
-            type_item.setToolTip("Secured" if note.secured else "Open")
-            type_item.setData(Qt.ItemDataRole.AccessibleTextRole, "Secured" if note.secured else "Open")
+        partial: list[Note] = []
+        searching = self._search_text is not None
+        if searching:
+            result = self._run_search(self._search_text)
+            exact = set(result.exact)
+            # Most of the words first; the table's order within the same number.
+            partial = sorted((n for n in notes if n.id in result.word_counts), key=lambda n: -result.word_counts[n.id])
+            notes = [n for n in notes if n.id in exact]
+        _fill(self.table, notes)
+        _fill(self.partial_table, partial)
         if self._highlighted is not None:  # still yellow if it is still listed
             if self._highlighted in self.shown_ids():
                 self._paint_highlight(self._strength)
             else:
                 self._stop_highlight()
-        empty = not notes
-        self.table.setVisible(not empty)
+        self.table.setVisible(bool(notes))
+        self.exact_label.setVisible(searching and bool(notes))
+        self.partial_table.setVisible(bool(partial))
+        self.partial_label.setVisible(bool(partial))
+        empty = not notes and not partial
         self.empty_label.setVisible(empty)
-        if empty:
-            self.empty_label.setText(
-                "No Notes have the selected Tags."
-                if self._notebook.notes()
-                else "No Notes yet. Write one above, press ＋ New Note, or Import…"
-            )
-
-    def _row_id(self, row: int) -> str:
-        return self.table.item(row, TITLE).data(Qt.ItemDataRole.UserRole)
+        if not empty:
+            return
+        if searching:
+            self.empty_label.setText(f"No Notes match “{self._search_text.strip()}”.")
+        elif self._notebook.notes():
+            self.empty_label.setText("No Notes have the selected Tags.")
+        else:
+            self.empty_label.setText("No Notes yet. Write one above, press ＋ New Note, or Import…")
 
     def _quick_add(self) -> None:
         note = self._notebook.quick_add(self.quick_add.text())
         if note is None:
             return
         self.quick_add.clear()
+        self.clear_search()
         self.noteCreated.emit(note.id)
         self.refresh()
         self.highlight(note.id)
+
+    # The Notebook search
+
+    def is_searching(self) -> bool:
+        return self._search_text is not None
+
+    def find(self) -> None:
+        """⌘F: the search field over the table, or Find in Note on a shown Note (starting with the search text)."""
+        if self.is_showing_note():
+            self.note_page.open_find(self._search_text)
+        else:
+            self.search_field.setFocus()
+            self.search_field.selectAll()
+
+    def apply_search(self, text: str) -> None:
+        """Enter: list the Exact and Partial matches. With Partial matches only, a "Partial match" toast says so."""
+        self._dismiss_toast()
+        if len(text.strip()) < MIN_CHARS:
+            self.clear_search()
+            return
+        self._search_text = text
+        self.refresh()
+        result = self._run_search(text)
+        if not result.whole_found and result.found_words:
+            self.toast().show_message("Partial match")
+
+    def clear_search(self) -> None:
+        if self.search_field.text():
+            self.search_field.blockSignals(True)
+            self.search_field.clear()
+            self.search_field.blockSignals(False)
+        self.search_field.set_green([])
+        if self._search_text is not None:
+            self._search_text = None
+            self.refresh()
+
+    def _dismiss_toast(self) -> None:
+        if self._toast is not None:
+            self._toast.dismiss()
+
+    def toast(self) -> Toast:
+        if self._toast is None:
+            self._toast = Toast(self.window())
+        return self._toast
+
+    def _search_typed(self, text: str) -> None:
+        """Colour what is found as it is typed: all of it, or else the words found. An emptied field (its ✕)
+        ends the search."""
+        if not text:
+            self.clear_search()
+            return
+        result = self._run_search(text)
+        if result.whole_found:
+            start = len(text) - len(text.lstrip())
+            self.search_field.set_green([(start, len(text.strip()))])
+        else:
+            self.search_field.set_green(_word_ranges(text, result.found_words))
+
+    def _run_search(self, text: str) -> SearchResult:
+        if self._password.is_unlocked() and not self._secured_searchable:
+            self._search.forget_secured()  # their Bodies can be read now
+            self._secured_searchable = True
+        return self._search.search(text)
+
+    def _read_secured(self, note: Note) -> str | None:
+        if not self._password.is_unlocked():
+            return None
+        try:
+            return self._notebook.read_body(note.id, self._password.current())
+        except WrongPassword:
+            return None
 
     # Highlighting a new Note's row: yellow, a hold, then a quick fade, as on the Board
 
@@ -295,6 +403,7 @@ class NotebookView(QWidget):
                 self, "Secured Note", f"“{note.title}” doesn't open with the Notebook password."
             )
             return False
+        self._dismiss_toast()
         note = self._notebook.mark_opened(note_id)
         self.note_page.show_note(note, body)
         self._pages.setCurrentWidget(self.note_page)
@@ -333,6 +442,7 @@ class NotebookView(QWidget):
         return True
 
     def _created_on_page(self, note_id: str) -> None:
+        self.clear_search()
         self._pending_highlight = note_id
         self.noteCreated.emit(note_id)
 
@@ -343,10 +453,10 @@ class NotebookView(QWidget):
         menu.addAction("Delete Note", lambda: self.delete_note(note_id))
         return menu
 
-    def _show_menu(self, at: QPoint) -> None:
-        item = self.table.itemAt(at)
+    def _show_menu(self, table: QTableWidget, at: QPoint) -> None:
+        item = table.itemAt(at)
         if item is not None:
-            self.note_menu(item.data(Qt.ItemDataRole.UserRole)).exec(self.table.viewport().mapToGlobal(at))
+            self.note_menu(item.data(Qt.ItemDataRole.UserRole)).exec(table.viewport().mapToGlobal(at))
 
     def delete_note(self, note_id: str) -> bool:
         """Delete after asking. A Secured Note needs the Notebook password, and its file is removed for good."""
@@ -410,6 +520,7 @@ class NotebookView(QWidget):
         made = [self._notebook.create(title, markdown).id for title, markdown in converted]
         if made:
             self.leave_note()
+            self.clear_search()
             self._pages.setCurrentIndex(0)
             self.noteCreated.emit(made[-1])
             self.refresh()
@@ -435,3 +546,35 @@ class NotebookView(QWidget):
         if refused:
             QMessageBox.warning(self, "Import", "Some files were not imported:\n\n" + "\n".join(refused))
         return converted
+
+
+def _row_id(table: QTableWidget, row: int) -> str:
+    return table.item(row, TITLE).data(Qt.ItemDataRole.UserRole)
+
+
+def _fill(table: QTableWidget, notes: list[Note]) -> None:
+    table.setRowCount(len(notes))
+    for row, note in enumerate(notes):
+        cells = [note.title, format_when(note.created_at), format_when(note.opened_at), "", format_size(note.size)]
+        for column, text in enumerate(cells):
+            item = QTableWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, note.id)
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            table.setItem(row, column, item)
+        table.item(row, TITLE).setToolTip(note.title)
+        type_item = table.item(row, TYPE)
+        type_item.setIcon(icon("lock" if note.secured else "lock-open", "#3A3D45" if note.secured else "#9095A0"))
+        type_item.setToolTip("Secured" if note.secured else "Open")
+        type_item.setData(Qt.ItemDataRole.AccessibleTextRole, "Secured" if note.secured else "Open")
+
+
+def _word_ranges(text: str, words: tuple[str, ...]) -> list[tuple[int, int]]:
+    """(start, length) of each place in `text` where one of `words` is written, ignoring case."""
+    folded = text.casefold()
+    ranges = []
+    for word in words:
+        start = folded.find(word)
+        while start != -1:
+            ranges.append((start, len(word)))
+            start = folded.find(word, start + len(word))
+    return sorted(ranges)

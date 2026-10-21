@@ -131,6 +131,18 @@ _Avoid_: Attachment, upload
 A Note the user deleted. It leaves the Notebook for good. An Open Note's file is kept under a name ending in `-deleted`, so it can be recovered by hand. A Secured Note can be deleted only with the Notebook password, and its file is removed outright.
 _Avoid_: Archived, trashed
 
+**Notebook search**:
+Finding Notes by text typed in the Notebook's search field. Text matches ignoring case and anywhere inside words, in a Note's Title or Body (a Secured Note's Body only while the Notebook password is unlocked). Pressing Enter filters the table, together with the Tag filter. It is cleared by its ✕, by Esc, by an empty search, by switching to Tasks or by creating a Note.
+_Avoid_: Filter, query, lookup
+
+**Exact match / Partial match**:
+The two results of a Notebook search. An Exact match holds the whole search text. A Partial match holds only some of its words (words of three or more letters), and Notes with more of the words come first. They are listed in two tables, exact above partial.
+_Avoid_: Hit, fuzzy match
+
+**Find in Note**:
+Searching inside the Note on screen: each Next selects the following place that holds the text, wrapping to the top after the last. In View mode it searches the rendered text, in Edit mode the Markdown.
+_Avoid_: Notebook search (that finds Notes, not places in one)
+
 **Type**:
 Whether a Note is Open or Secured. It can be changed only while editing the Note.
 _Avoid_: Kind, format, category

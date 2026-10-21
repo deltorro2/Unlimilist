@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import QEasingCurve, QPoint, Qt, QTimer, QVariantAnimation, Signal
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
@@ -30,6 +30,7 @@ from unlimilist.secure import WrongPassword
 from unlimilist.ui import password_dialogs
 from unlimilist.ui.icons import icon
 from unlimilist.ui.note_page import NotePage, format_when
+from unlimilist.ui.note_rows import style_rows
 from unlimilist.ui.search_field import SearchField
 from unlimilist.ui.toast import Toast
 
@@ -46,6 +47,8 @@ _FIRST_ORDER = {
 _HIGHLIGHT = QColor("#FFE066")
 _HIGHLIGHT_HOLD_MS = 1000  # as on the Board's cards
 _HIGHLIGHT_FADE_MS = 400
+_INK = QColor("#1B1B1F")  # the Title
+_SOFT_INK = QColor("#5A5F6B")  # the other columns, so the Title stands out
 
 
 def format_size(size: int) -> str:
@@ -176,7 +179,7 @@ class NotebookView(QWidget):
         table.setShowGrid(False)
         table.setWordWrap(False)
         table.verticalHeader().hide()
-        table.verticalHeader().setDefaultSectionSize(34)
+        style_rows(table)
         table.setCursor(Qt.CursorShape.PointingHandCursor)
         header = table.horizontalHeader()
         header.setSectionResizeMode(TITLE, QHeaderView.ResizeMode.Stretch)
@@ -561,7 +564,14 @@ def _fill(table: QTableWidget, notes: list[Note]) -> None:
             item.setData(Qt.ItemDataRole.UserRole, note.id)
             item.setFlags(Qt.ItemFlag.ItemIsEnabled)
             table.setItem(row, column, item)
-        table.item(row, TITLE).setToolTip(note.title)
+        title = table.item(row, TITLE)
+        title.setToolTip(note.title)
+        bold = QFont(title.font())
+        bold.setBold(True)  # every Title, whatever the Note's state
+        title.setFont(bold)
+        title.setForeground(_INK)
+        for column in (CREATED, OPENED, SIZE):
+            table.item(row, column).setForeground(_SOFT_INK)
         type_item = table.item(row, TYPE)
         type_item.setIcon(icon("lock" if note.secured else "lock-open", "#3A3D45" if note.secured else "#9095A0"))
         type_item.setToolTip("Secured" if note.secured else "Open")

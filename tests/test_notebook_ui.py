@@ -662,3 +662,55 @@ def test_importing_from_the_table_still_makes_one_note_per_file(qtbot, window, f
 
     assert view(window).is_showing_table()
     assert len(titles(window)) == 5
+
+
+# How the rows look: flat raised rows, bold Titles
+
+
+def row_pixels(window, row, table=None):
+    """The colours down a row of the table, top to bottom, as drawn: at the far end of the wide Title cell, clear
+    of any text."""
+    table = table or view(window).table
+    QApplication.processEvents()
+    image = table.viewport().grab().toImage()
+    rect = table.visualItemRect(table.item(row, TITLE))
+    x = rect.right() - 3
+    return [image.pixelColor(x, y).name() for y in range(rect.top(), rect.bottom() + 1)]
+
+
+def test_every_title_is_bold_and_the_other_columns_are_regular(window):
+    table = view(window).table
+
+    for row in range(table.rowCount()):
+        assert table.item(row, TITLE).font().bold()
+        assert not table.item(row, CREATED).font().bold()
+
+
+def test_rows_are_40_px_and_drawn_raised_flat_light_top_edge_darker_bottom_edge(window):
+    from unlimilist.ui.note_rows import BOTTOM_EDGE, FILL, TOP_EDGE
+
+    table = view(window).table
+    assert table.rowHeight(0) == 40
+
+    pixels = row_pixels(window, 1)
+
+    assert pixels[0] == TOP_EDGE.name()
+    assert pixels[len(pixels) // 2] == FILL.name()
+    assert BOTTOM_EDGE.name() in pixels[-3:]
+    assert len(set(pixels[3:-4])) == 1  # one flat colour between the edges: no gradient
+
+
+def test_the_row_under_the_mouse_is_tinted_and_its_shade_deepens(qtbot, window):
+    from unlimilist.ui.note_rows import FILL, HOVER_FILL
+
+    table = view(window).table
+    before = row_pixels(window, 1)
+    rect = table.visualItemRect(table.item(1, CREATED))
+
+    qtbot.mouseMove(table.viewport(), rect.center())
+    qtbot.waitUntil(lambda: row_pixels(window, 1)[len(before) // 2] == HOVER_FILL.name())
+
+    after = row_pixels(window, 1)
+    assert after[len(after) // 2] != FILL.name()
+    assert after[-2:] != before[-2:]  # a deeper shade
+    assert row_pixels(window, 0)[len(before) // 2] == FILL.name()  # the others stay as they were

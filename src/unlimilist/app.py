@@ -69,8 +69,8 @@ QLabel#settingsHeading { font-size: 13px; font-weight: 700; color: #22252B; }
 QLabel#settingsHint { font-size: 12px; color: #6B7080; }
 QFrame#settingsPreview { background: #FFFFFF; border: 1px solid #E2E4EA; border-radius: 8px; }
 QStackedWidget { background: #F4F5F8; }
-QTableWidget#notesTable { background: #FFFFFF; border: 1px solid #E2E4EA; border-radius: 8px; font-size: 13px; color: #1B1B1F; }
-QTableWidget#notesTable::item { padding: 0 8px; border-bottom: 1px solid #EEF0F4; }
+QTableWidget#notesTable { background: #F4F5F8; border: 1px solid #E2E4EA; border-radius: 8px; font-size: 13px; color: #1B1B1F; }
+QTableWidget#notesTable::item { padding: 0 8px; }
 QTableWidget#notesTable QHeaderView::section { background: #F6F7FA; color: #5A5F6B; font-size: 12px; font-weight: 600; border: none; border-bottom: 1px solid #E2E4EA; padding: 6px 8px; }
 QTableWidget#notesTable QHeaderView::section:hover { color: #1A3D8F; }
 QLabel#notesEmpty { color: #8A8F99; font-size: 14px; }

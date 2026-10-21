@@ -119,6 +119,15 @@ def _polish_table(table: QTextTable) -> None:
         cursor.mergeCharFormat(header)
 
 
+def _gap(text: str, leading: bool) -> str:
+    """The newlines that leave a blank line between `text` (what comes before or after an insert) and the
+    inserted text. None at the very start or end of the Body."""
+    if not text:
+        return ""
+    edge = text[len(text.rstrip("\n")) :] if leading else text[: len(text) - len(text.lstrip("\n"))]
+    return "\n" * max(0, 2 - len(edge))
+
+
 def format_when(when: datetime | None) -> str:
     """"21 Oct 2026, 14:05", or "—" for never."""
     return f"{when.day} {when:%b %Y, %H:%M}" if when else "—"
@@ -496,6 +505,25 @@ class NotePage(QWidget):
         self._note_id = None
         self._saved = None
         self._fill("", "", (), NoteType.OPEN)
+
+    def insert_markdown(self, text: str, at_cursor: bool) -> None:
+        """Add `text` to the Body, in Edit mode: at the cursor, or else at the end. A blank line keeps it apart
+        from the text before and after it."""
+        self.set_editing(True)
+        cursor = self.editor.textCursor()
+        if not at_cursor:
+            cursor.movePosition(QTextCursor.MoveOperation.End)
+        body = self.editor.toPlainText()
+        before, after = body[: cursor.position()], body[cursor.position() :]
+        cursor.beginEditBlock()  # one step to undo
+        cursor.insertText(_gap(before, leading=True) + text)
+        end = cursor.position()
+        cursor.insertText(_gap(after, leading=False))
+        cursor.endEditBlock()
+        cursor.setPosition(end)
+        self.editor.setTextCursor(cursor)
+        self.editor.ensureCursorVisible()
+        self.editor.setFocus()
 
     def show_cheat_sheet(self) -> None:
         self.cheat_sheet = CheatSheet(self)

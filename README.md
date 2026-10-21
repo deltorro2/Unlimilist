@@ -38,7 +38,7 @@ Jira, Todoist and TickTick do a thousand things you'll never use. Trello does to
 - 📞 **Activities at a glance.** A badge on each card tells a call from a meeting, a question to ask, a coding session or a milestone.
 - 🧹 **Tidy up fast.** Select several Tasks and delete them in one go, or duplicate a Task to reuse it. Deleted files are kept, so nothing is lost by mistake.
 - 🗄 **Fold Done away.** A switch under Done folds it to a slim strip, so Inbox and In Process get the room; you can still drop Tasks on it to finish them.
-- 📓 **A Notebook beside the Board.** Keep reference notes in Markdown: a sortable table of every Note, a raw-Markdown editor with colouring, and a clean rendered view. Quick-add a note in one line, or import Markdown, text, CSV, Word and PDF files.
+- 📓 **A Notebook beside the Board.** Keep reference notes in Markdown: a sortable table of every Note, a raw-Markdown editor with colouring, and a clean rendered view. Quick-add a note in one line, or import Markdown, text, CSV, Word and PDF files, as new Notes or into the Note you're writing.
 - 🔐 **Secured Notes.** Encrypt a Note's text with one Notebook password, kept in your Mac's Keychain.
 - 🔠 **Text at a size that suits you.** Pick one of five card font sizes in Settings (the gear, or ⌘,); the Board follows as you slide.
 

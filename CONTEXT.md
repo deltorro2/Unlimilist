@@ -119,8 +119,12 @@ _Avoid_: Note dialog, note editor, preview
 A Note saved with a Body but no Title. It is titled "Daily note" plus the day it was created, and gets the Tag #daily.
 _Avoid_: Journal, untitled note
 
+**Import**:
+Bringing outside files (Markdown, text, CSV, Word or PDF) into the Notebook, their content converted to Markdown. From the table, each file becomes an Imported Note. With a Note shown, the files' text is added to its Body instead, one after another: at the cursor if the Body was being typed in, else at the end, and the Note stays in Edit mode. The original file is not kept, and its images are not brought in.
+_Avoid_: Attachment, upload
+
 **Imported Note**:
-A Note made from an outside file (Markdown, text, CSV, Word or PDF) whose content was converted to Markdown. It is titled after the file name and starts Open, with no Tags. The original file is not kept, and its images are not brought in.
+A Note made by Import from the table. It is titled after the file name and starts Open, with no Tags.
 _Avoid_: Attachment, upload
 
 **Deleted Note**:

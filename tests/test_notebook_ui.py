@@ -565,3 +565,100 @@ def test_change_password_is_off_until_there_is_a_password(qtbot):
 
     assert not without.change_password_button.isEnabled()
     assert with_one.change_password_button.isEnabled()
+
+
+# Importing into the Note being edited
+
+
+@pytest.fixture
+def files(tmp_path):
+    (tmp_path / "one.md").write_text("# One\n\nfirst file", encoding="utf-8")
+    (tmp_path / "two.md").write_text("second file", encoding="utf-8")
+    return tmp_path
+
+
+def pick(monkeypatch, *paths):
+    """The file dialog answers with these files."""
+    from PySide6.QtWidgets import QFileDialog
+
+    monkeypatch.setattr(QFileDialog, "getOpenFileNames", lambda *args: ([str(p) for p in paths], ""))
+
+
+def edit(qtbot, window, title):
+    click_row(qtbot, window, title)
+    page(window).edit_button.click()
+
+
+def test_importing_while_editing_adds_to_the_body_at_the_cursor_and_stays_in_edit_mode(
+    qtbot, window, files, monkeypatch
+):
+    edit(qtbot, window, "Groceries")  # "- milk\n- bread"
+    editor = page(window).editor
+    window.activateWindow()
+    editor.setFocus()
+    qtbot.waitUntil(editor.hasFocus)
+    cursor = editor.textCursor()
+    cursor.setPosition(len("- milk\n"))  # the start of "- bread"
+    editor.setTextCursor(cursor)
+    pick(monkeypatch, files / "one.md")
+
+    # A real click: the toolbar button must not take the focus from the editor.
+    qtbot.mouseClick(window.toolbar.widgetForAction(window.import_action), Qt.MouseButton.LeftButton)
+
+    assert view(window).is_showing_note() and page(window).is_editing()
+    assert editor.toPlainText() == "- milk\n\n# One\n\nfirst file\n\n- bread"  # a blank line on each side
+    assert len(titles(window)) == 3  # no new Note
+
+
+def test_importing_again_and_again_keeps_adding_to_the_same_note(qtbot, window, files, monkeypatch):
+    edit(qtbot, window, "Groceries")
+    page(window).title_edit.setFocus()  # the Body editor is not focused: the text goes at the end
+
+    pick(monkeypatch, files / "one.md")
+    window.import_action.trigger()
+    pick(monkeypatch, files / "two.md")
+    window.import_action.trigger()
+
+    assert page(window).editor.toPlainText() == "- milk\n- bread\n\n# One\n\nfirst file\n\nsecond file"
+    assert page(window).is_editing()
+    page(window).back_button.click()
+    assert len(titles(window)) == 3
+    assert window._notebook.note(note_id(window, "Groceries")).body.endswith("second file")
+
+
+def test_several_files_picked_at_once_are_added_in_order(qtbot, window, files, monkeypatch):
+    edit(qtbot, window, "Groceries")
+    page(window).title_edit.setFocus()
+    pick(monkeypatch, files / "one.md", files / "two.md")
+
+    window.import_action.trigger()
+
+    assert page(window).editor.toPlainText().endswith("# One\n\nfirst file\n\nsecond file")
+
+
+def test_importing_in_view_mode_switches_to_edit_and_adds_at_the_end(qtbot, window, files, monkeypatch):
+    click_row(qtbot, window, "Groceries")
+    pick(monkeypatch, files / "two.md")
+
+    window.import_action.trigger()
+
+    assert page(window).is_editing()
+    assert page(window).editor.toPlainText() == "- milk\n- bread\n\nsecond file"
+
+
+def test_importing_into_an_empty_new_note_adds_just_the_text(qtbot, window, files, monkeypatch):
+    window.new_note_action.trigger()
+    pick(monkeypatch, files / "two.md")
+
+    window.import_action.trigger()
+
+    assert page(window).editor.toPlainText() == "second file"
+
+
+def test_importing_from_the_table_still_makes_one_note_per_file(qtbot, window, files, monkeypatch):
+    pick(monkeypatch, files / "one.md", files / "two.md")
+
+    window.import_action.trigger()
+
+    assert view(window).is_showing_table()
+    assert len(titles(window)) == 5

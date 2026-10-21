@@ -392,29 +392,46 @@ class NotebookView(QWidget):
     # Importing
 
     def import_notes(self) -> None:
+        """From the table, each file becomes a Note. With a Note open, the files' text goes into its Body: at
+        the cursor if the Body editor has the focus, else at the end. Decided before the file dialog takes it."""
+        into_note = self.is_showing_note()
+        at_cursor = into_note and self.note_page.is_editing() and self.note_page.editor.hasFocus()
         paths, _ = QFileDialog.getOpenFileNames(self, "Import into the Notebook", str(Path.home()), FILE_FILTER)
-        if paths:
+        if not paths:
+            return
+        if into_note:
+            self.import_into_note([Path(p) for p in paths], at_cursor)
+        else:
             self.import_paths([Path(p) for p in paths])
 
     def import_paths(self, paths: list[Path]) -> list[str]:
         """One Open Note per file; returns the ids made. Files that can't be imported are listed in a message."""
-        made, refused = [], []
-        for path in paths:
-            try:
-                title, markdown = import_file(path)
-            except ImportRefused as reason:
-                refused.append(str(reason))
-                continue
-            except OSError as error:
-                refused.append(f"{path.name} could not be read: {error.strerror}")
-                continue
-            made.append(self._notebook.create(title, markdown).id)
+        converted = self._convert(paths)
+        made = [self._notebook.create(title, markdown).id for title, markdown in converted]
         if made:
             self.leave_note()
             self._pages.setCurrentIndex(0)
             self.noteCreated.emit(made[-1])
             self.refresh()
             self.highlight(made[-1])
+        return made
+
+    def import_into_note(self, paths: list[Path], at_cursor: bool) -> None:
+        """Add the files' text, one after another, to the Body of the Note on the page; it stays in Edit mode."""
+        texts = [markdown for _, markdown in self._convert(paths) if markdown]
+        if texts:
+            self.note_page.insert_markdown("\n\n".join(texts), at_cursor)
+
+    def _convert(self, paths: list[Path]) -> list[tuple[str, str]]:
+        """(Title, Markdown) for each file that can be imported; the others are listed in a message."""
+        converted, refused = [], []
+        for path in paths:
+            try:
+                converted.append(import_file(path))
+            except ImportRefused as reason:
+                refused.append(str(reason))
+            except OSError as error:
+                refused.append(f"{path.name} could not be read: {error.strerror}")
         if refused:
             QMessageBox.warning(self, "Import", "Some files were not imported:\n\n" + "\n".join(refused))
-        return made
+        return converted

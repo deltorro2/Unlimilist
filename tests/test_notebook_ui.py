@@ -686,11 +686,11 @@ def test_every_title_is_bold_and_the_other_columns_are_regular(window):
         assert not table.item(row, CREATED).font().bold()
 
 
-def test_rows_are_40_px_and_drawn_raised_flat_light_top_edge_darker_bottom_edge(window):
+def test_rows_are_46_px_and_drawn_raised_flat_light_top_edge_darker_bottom_edge(window):
     from unlimilist.ui.note_rows import BOTTOM_EDGE, FILL, TOP_EDGE
 
     table = view(window).table
-    assert table.rowHeight(0) == 40
+    assert table.rowHeight(0) == 46
 
     pixels = row_pixels(window, 1)
 

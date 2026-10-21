@@ -6,7 +6,7 @@ from PySide6.QtCore import QEvent, QModelIndex, QObject, Qt
 from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem, QTableWidget
 
-ROW_HEIGHT = 40
+ROW_HEIGHT = 46
 FILL = QColor("#FAFBFC")
 TOP_EDGE = QColor("#FFFFFF")
 BOTTOM_EDGE = QColor("#D9DDE5")

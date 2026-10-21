@@ -155,13 +155,13 @@ def test_the_gear_sits_at_the_far_right_of_the_toolbar_with_no_text(window):
     assert action.shortcut() == QKeySequence("Ctrl+,")
 
 
-def test_the_settings_window_has_a_board_view_tab_and_a_close_button(qtbot, store):
+def test_the_settings_window_has_board_view_and_notebook_tabs_and_a_close_button(qtbot, store):
     from unlimilist.ui.settings_dialog import SettingsDialog
 
     dialog = SettingsDialog(Settings())
     qtbot.addWidget(dialog)
 
-    assert [dialog.tabs.tabText(i) for i in range(dialog.tabs.count())] == ["Board view"]
+    assert [dialog.tabs.tabText(i) for i in range(dialog.tabs.count())] == ["Board view", "Notebook"]
     assert dialog.font_slider.value() == 2
     assert (dialog.font_slider.minimum(), dialog.font_slider.maximum()) == (1, 5)
     dialog.close_button.click()

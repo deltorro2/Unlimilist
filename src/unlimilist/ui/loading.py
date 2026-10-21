@@ -1,4 +1,4 @@
-"""Startup: the Tasks load in a background thread while a card with a moving bar covers the faded window."""
+"""Startup: the Tasks and Notes load in a background thread while a card with a moving bar covers the faded window."""
 
 from pathlib import Path
 
@@ -13,6 +13,9 @@ from PySide6.QtWidgets import (
 )
 
 from unlimilist.board import Board
+from unlimilist.note_search import NoteSearch
+from unlimilist.note_store import MarkdownNoteStore
+from unlimilist.notebook import Notebook
 from unlimilist.store import MarkdownTaskStore
 from unlimilist.ui.app_title import RingedLetter
 
@@ -34,23 +37,42 @@ def open_board(folder: Path) -> tuple[Board, list[str]]:
     return board, list(store.warnings)
 
 
-class BoardLoader(QThread):
-    """Runs open_board off the UI thread; the Board is handed back through `loaded`."""
+SEARCH_INDEX = ".search-index.json"  # in the notes folder; the app reads only *.md files there
 
-    loaded = Signal(object, object)  # Board, warnings
+
+def open_notebook(folder: Path) -> tuple[Notebook, NoteSearch, list[str]]:
+    """Read every Note file, build the Notebook and bring its search index up to date. Secured Notes stay
+    encrypted."""
+    store = MarkdownNoteStore(folder)
+    notebook = Notebook(store=store)
+    search = NoteSearch(notebook, index_path=folder / SEARCH_INDEX)
+    search.flush()
+    return notebook, search, list(store.warnings)
+
+
+class BoardLoader(QThread):
+    """Runs open_board (and open_notebook) off the UI thread; they are handed back through `loaded`."""
+
+    loaded = Signal(object, object, object)  # Board, (Notebook, NoteSearch) or None without a notes folder, warnings
     failed = Signal(str)
 
-    def __init__(self, folder: Path, parent=None):
+    def __init__(self, folder: Path, notes_folder: Path | None = None, parent=None):
         super().__init__(parent)
         self._folder = folder
+        self._notes_folder = notes_folder
 
     def run(self):
         try:
             board, warnings = open_board(self._folder)
+            notes = None
+            if self._notes_folder is not None:
+                notebook, search, note_warnings = open_notebook(self._notes_folder)
+                notes = (notebook, search)
+                warnings += note_warnings
         except Exception as error:  # e.g. the data folder can't be created or read
             self.failed.emit(str(error))
             return
-        self.loaded.emit(board, warnings)
+        self.loaded.emit(board, notes, warnings)
 
 
 class ProgressBar(QWidget):

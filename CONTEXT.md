@@ -63,11 +63,11 @@ A checkbox item in a Task's Details, either finished (checked) or unfinished. Su
 _Avoid_: Checklist item, todo, child task
 
 **Tag**:
-A one-word label written in a Task's Details as #word: letters, digits, - and _, starting with a letter. The # has to start a word, and a # inside code or a link doesn't count. A Task has every Tag that appears in its Details, and its first Tag is the first one written. Tags ignore case, so #Work and #work are the same Tag.
+A one-word label: letters, digits, - and _, starting with a letter. Tags ignore case, so #Work and #work are the same Tag, whether on a Task or a Note. A Task's Tags are written in its Details as #word. The # has to start a word, and a # inside code or a link doesn't count. A Task has every Tag that appears in its Details, and its first Tag is the first one written. A Note's Tags are kept in its own Tag area, never in its Body. The sidebar lists every Tag in both views, each counted for the view on screen.
 _Avoid_: Label, hashtag, category
 
 **Tag filter**:
-The set of Tags selected in the sidebar. When it isn't empty, the Board shows only Tasks that have at least one selected Tag. It is cleared by Clear, by choosing Everything, by creating a Task, and when the app starts. A Tag that no Task has any more drops out of it.
+The set of Tags selected in the sidebar, shared by the Board and the Notebook. When it isn't empty, each view shows only the Tasks or Notes that have at least one selected Tag. Switching views keeps it. It is cleared by Clear, by creating a Task or a Note, and when the app starts. A Tag that no Task or Note has any more drops out of it.
 _Avoid_: Tag search, tag query
 
 **Usable data**:
@@ -102,3 +102,55 @@ A Task that is not Done and whose Deadline is today or tomorrow, and that is nei
 
 **Completed on**:
 The date a Task entered Done. Done is ordered by it, most recent first.
+
+**Notebook**:
+The second view of the app, next to the Board (the sidebar names them Tasks and Notebook): a table of all Notes, most recently opened or created first. Choosing a Note opens it in place of the table.
+_Avoid_: Notes view, library, Dashboard
+
+**Note**:
+A piece of Markdown text the user keeps for reference. It has a Title, a Body, Tags, a Created date, a Last opened date and a Type. A Note is not a Task: it never appears on the Board and is not linked to any Task.
+_Avoid_: Document, memo, page
+
+**Show Note**:
+How the Notebook shows one Note, in place of its table: in View mode the Body is rendered, and in Edit mode the Title, Type, Tags and the Body's Markdown can be changed. A new Note opens in Edit mode and an existing one in View mode. Edits are saved on leaving Edit mode, on leaving the Note, and every five minutes while editing. Showing a Note sets its Last opened date.
+_Avoid_: Note dialog, note editor, preview
+
+**Daily note**:
+A Note saved with a Body but no Title. It is titled "Daily note" plus the day it was created, and gets the Tag #daily.
+_Avoid_: Journal, untitled note
+
+**Import**:
+Bringing outside files (Markdown, text, CSV, Word or PDF) into the Notebook, their content converted to Markdown. From the table, each file becomes an Imported Note. With a Note shown, the files' text is added to its Body instead, one after another: at the cursor if the Body was being typed in, else at the end, and the Note stays in Edit mode. The original file is not kept, and its images are not brought in.
+_Avoid_: Attachment, upload
+
+**Imported Note**:
+A Note made by Import from the table. It is titled after the file name and starts Open, with no Tags.
+_Avoid_: Attachment, upload
+
+**Deleted Note**:
+A Note the user deleted. It leaves the Notebook for good. An Open Note's file is kept under a name ending in `-deleted`, so it can be recovered by hand. A Secured Note can be deleted only with the Notebook password, and its file is removed outright.
+_Avoid_: Archived, trashed
+
+**Notebook search**:
+Finding Notes by text typed in the Notebook's search field. Text matches ignoring case and anywhere inside words, in a Note's Title or Body (a Secured Note's Body only while the Notebook password is unlocked). Pressing Enter filters the table, together with the Tag filter. It is cleared by its ✕, by Esc, by an empty search, by switching to Tasks or by creating a Note.
+_Avoid_: Filter, query, lookup
+
+**Exact match / Partial match**:
+The two results of a Notebook search. An Exact match holds the whole search text. A Partial match holds only some of its words (words of three or more letters), and Notes with more of the words come first. They are listed in two tables, exact above partial.
+_Avoid_: Hit, fuzzy match
+
+**Find in Note**:
+Searching inside the Note on screen: each Next selects the following place that holds the text, wrapping to the top after the last. In View mode it searches the rendered text, in Edit mode the Markdown.
+_Avoid_: Notebook search (that finds Notes, not places in one)
+
+**Type**:
+Whether a Note is Open or Secured. It can be changed only while editing the Note.
+_Avoid_: Kind, format, category
+
+**Secured Note**:
+A Note whose Body is encrypted and can be read only with the Notebook password. Its Title, Tags, dates and Type stay readable.
+_Avoid_: Private, locked, hidden
+
+**Notebook password**:
+The one password that opens every Secured Note. It is asked for the first time a Secured Note is opened and is then remembered until the app quits. Every password typed is checked against the copy kept in the macOS Keychain, never in the app's own files.
+_Avoid_: Note password, PIN

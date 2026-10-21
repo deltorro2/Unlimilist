@@ -396,9 +396,21 @@ def test_window_has_the_app_icon(window):
 
 def test_toolbar_shows_the_app_name_with_its_version(window):
     title = window.app_title
-    assert (title.name(), title.version()) == ("UnlimiList", "1.9")
-    assert title.accessibleName() == "UnlimiList 1.9"
-    assert window.windowTitle() == "UnlimiList 1.9"
+    assert (title.name(), title.version()) == ("UnlimiList", "2.0")
+    assert title.accessibleName() == "UnlimiList 2.0"
+    assert window.windowTitle() == "UnlimiList 2.0"
+    assert title.tag() is None
+
+
+def test_a_test_build_shows_test_after_the_version(qtbot, board):
+    window = MainWindow(board, test_build=True)
+    qtbot.addWidget(window)
+    title = window.app_title
+
+    assert title.tag() == "TEST"
+    assert title.accessibleName() == "UnlimiList 2.0 TEST"
+    assert window.windowTitle() == "UnlimiList 2.0 TEST"
+    assert title.tag_rect().left() > title.version_rect().right()
 
 
 def test_column_shows_the_interleaved_order(window, board):
@@ -717,20 +729,27 @@ def test_clicking_a_selected_tag_unselects_it(qtbot, window, tagged):
     assert lane_headers(window, Stage.INBOX) == ("SOMEDAY  ·  3", "TIME-LIMITED  ·  2")
 
 
-@pytest.mark.parametrize("how", ["clear", "everything"])
-def test_clear_and_everything_unselect_all_tags(qtbot, window, tagged, how):
+def test_clear_unselects_all_tags(qtbot, window, tagged):
     window.refresh()
     click_bubble(qtbot, window, "home")
 
-    if how == "clear":
-        window.sidebar.clear_button.click()
-    else:
-        views = window.sidebar.views
-        qtbot.mouseClick(views.viewport(), Qt.MouseButton.LeftButton, pos=views.visualItemRect(views.item(0)).center())
+    window.sidebar.clear_button.click()
 
     assert all(not selected for _, selected in bubbles(window).values())
     assert len(card_titles(window, Stage.INBOX)) == 5
     assert not window.sidebar.clear_button.isEnabled()
+
+
+def test_the_views_are_tasks_and_notebook_and_choosing_tasks_keeps_the_tag_filter(qtbot, window, tagged):
+    window.refresh()
+    click_bubble(qtbot, window, "home")
+    views = window.sidebar.views
+
+    qtbot.mouseClick(views.viewport(), Qt.MouseButton.LeftButton, pos=views.visualItemRect(views.item(0)).center())
+
+    assert [views.item(i).text() for i in range(views.count())] == ["Tasks", "Notebook"]
+    assert bubbles(window)["home"] == (2, True)
+    assert len(card_titles(window, Stage.INBOX)) == 2
 
 
 def test_a_filtered_card_keeps_the_shade_it_has_on_the_full_board(qtbot, window, tagged):

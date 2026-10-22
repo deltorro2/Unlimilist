@@ -151,7 +151,7 @@ Either way:
 ## Install
 
 1. Download the DMG for your Mac from the [latest release](https://github.com/deltorro2/Unlimilist/releases/latest). Not sure which? Open Apple menu › About This Mac: **Chip** (Apple M1, M2, …) means Apple Silicon, and **Processor** (Intel …) means Intel.
-   - **Apple Silicon:** `Unlimilist-<version>-AppleSilicon.dmg` (up to 2.1.0: `Unlimilist-<version>.dmg`)
+   - **Apple Silicon:** `Unlimilist-<version>-AppleSilicon.dmg`
    - **Intel:** `Unlimilist-<version>-Intel.dmg`
 2. Open it and drag **UnlimiList** onto **Applications**.
 3. On first launch, right-click the app and choose **Open**: the app isn't notarized by Apple yet.
@@ -319,5 +319,10 @@ Other Tasks and Notes you create while testing stay in the test folders until yo
 
 - **Branches:** features, and the fixes that belong to them, go on `dev`. A pull request brings a finished feature to `main`.
 - **Version:** it lives in `src/unlimilist/__init__.py` and is shown next to the app name.
-- **Releases:** they are tagged on `main` (`v2.0.0`), and the DMG is attached to the GitHub release.
+- **Releases:** they are tagged on `main` (for example `v2.1.1`). Each GitHub release carries two DMGs, `Unlimilist-<version>-AppleSilicon.dmg` and `Unlimilist-<version>-Intel.dmg`, with their SHA-256 in the notes.
+- **Release checklist:**
+  1. Run the tests on both chips: `uv run pytest`, then `arch -x86_64 .venv-intel/bin/python -m pytest`.
+  2. Build both DMGs: `./scripts/build_dmg.sh` and `./scripts/build_dmg.sh --intel`.
+  3. Check that every binary in the Intel app is x86_64.
+  4. Tag the release and upload both DMGs.
 - **Icons:** the app icon is `assets/Unlimilist.icns` for the bundle and `src/unlimilist/assets/app_icon.png` for the window.

@@ -106,7 +106,7 @@ The Board doesn't just list Tasks. It orders them.
 
 - **Plain files.** Every Task and every Note is one Markdown file with a small YAML header, readable in any editor and easy to back up, sync or version.
 - **Local only.** No account, no telemetry, no internet connection required.
-- **Sync with the tools you already use.** Because everything is plain files, Dropbox, Google Drive, iCloud Drive, OneDrive, Syncthing or any similar service can keep your Tasks and Notes in step across Macs, and give you file history for free (see [Sync across Macs](#sync-across-macs)).
+- **Sync with the tools you already use.** Because everything is plain files in one folder, set it as a sync folder in Google Drive, Dropbox, Syncthing or a similar service, and your Tasks and Notes stay in step across Macs, with file history for free (see [Sync across Macs](#sync-across-macs)).
 - **Recoverable.** Deleted Tasks and Notes are renamed, not erased. The only exception is Secured Notes, which are removed for good.
 
 | Location | Contents |
@@ -118,15 +118,24 @@ The Board doesn't just list Tasks. It orders them.
 
 ## Sync across Macs
 
-UnlimiList keeps its data in one folder, so any file-sync service can carry it between Macs. Quit UnlimiList, move the folder into your synced folder, and leave a link in its place. For Dropbox:
+All of UnlimiList's data lives in one folder, so a file-sync service can keep it in step across Macs:
+
+```text
+~/Library/Application Support/Unlimilist
+```
+
+**Point your sync tool at that folder.** Services that can sync any folder you choose can sync UnlimiList's folder directly, with nothing moved: for example, Google Drive for desktop (*Preferences › My Mac › Add folder*), Syncthing or Resilio Sync. To reach the folder in Finder, use *Go › Go to Folder…* (⇧⌘G) and paste the path above. Do the same on every Mac.
+
+**For Dropbox, iCloud Drive or OneDrive**, which sync only their own folder, move UnlimiList's folder into theirs and leave a link in its place. Quit UnlimiList first. For Dropbox:
 
 ```sh
 mv ~/Library/Application\ Support/Unlimilist ~/Dropbox/Unlimilist
 ln -s ~/Dropbox/Unlimilist ~/Library/Application\ Support/Unlimilist
 ```
 
-On each other Mac, make the same link (`ln -s …`) to the synced folder. Google Drive, iCloud Drive and OneDrive work the same way: use their folder instead of `~/Dropbox`.
+On each other Mac, only make the link (`ln -s …`). For the other services, use their folder instead of `~/Dropbox`.
 
+Either way:
 - UnlimiList reads its files when it starts. Let the sync finish before you open it, and use it on one Mac at a time, so the same file isn't edited in two places.
 - The Notebook password lives in each Mac's Keychain and isn't synced. On another Mac, the first time you open a Secured Note, type the same password; it's then stored in that Mac's Keychain too.
 

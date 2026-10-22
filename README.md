@@ -106,6 +106,7 @@ The Board doesn't just list Tasks. It orders them.
 
 - **Plain files.** Every Task and every Note is one Markdown file with a small YAML header, readable in any editor and easy to back up, sync or version.
 - **Local only.** No account, no telemetry, no internet connection required.
+- **Sync with the tools you already use.** Because everything is plain files, Dropbox, Google Drive, iCloud Drive, OneDrive, Syncthing or any similar service can keep your Tasks and Notes in step across Macs, and give you file history for free (see [Sync across Macs](#sync-across-macs)).
 - **Recoverable.** Deleted Tasks and Notes are renamed, not erased. The only exception is Secured Notes, which are removed for good.
 
 | Location | Contents |
@@ -114,6 +115,20 @@ The Board doesn't just list Tasks. It orders them.
 | `~/Library/Application Support/Unlimilist/notes` | Notes and the search index |
 | `~/Library/Application Support/Unlimilist/settings.json` | Settings |
 | macOS Keychain, item "Unlimilist" | The Notebook password for Secured Notes |
+
+## Sync across Macs
+
+UnlimiList keeps its data in one folder, so any file-sync service can carry it between Macs. Quit UnlimiList, move the folder into your synced folder, and leave a link in its place. For Dropbox:
+
+```sh
+mv ~/Library/Application\ Support/Unlimilist ~/Dropbox/Unlimilist
+ln -s ~/Dropbox/Unlimilist ~/Library/Application\ Support/Unlimilist
+```
+
+On each other Mac, make the same link (`ln -s …`) to the synced folder. Google Drive, iCloud Drive and OneDrive work the same way: use their folder instead of `~/Dropbox`.
+
+- UnlimiList reads its files when it starts. Let the sync finish before you open it, and use it on one Mac at a time, so the same file isn't edited in two places.
+- The Notebook password lives in each Mac's Keychain and isn't synced. On another Mac, the first time you open a Secured Note, type the same password; it's then stored in that Mac's Keychain too.
 
 ## Keyboard shortcuts
 

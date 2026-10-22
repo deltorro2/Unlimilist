@@ -90,7 +90,7 @@ The Board doesn't just list Tasks. It orders them.
 ### Encryption where it matters
 
 - **Secured Notes** encrypt their content with **AES-256-GCM**. The key is derived from your Notebook password with **scrypt**, with a fresh salt and nonce on every save.
-- The Notebook password is checked against the **macOS Keychain** and never written to the app's own files. It's asked for once per session.
+- The Notebook password is **stored in the macOS Keychain** (under "Unlimilist"), protected by your Mac login, and never written to the app's own files. Every password you type is checked against that Keychain entry. It's asked for once per session, and if you forget it, you can look it up in the Keychain Access app.
 - Titles and Tags stay readable, so encrypted Notes still sort, filter and appear in search by title.
 - The password can be changed at any time; every Secured Note is re-encrypted in one step.
 
@@ -113,6 +113,7 @@ The Board doesn't just list Tasks. It orders them.
 | `~/Library/Application Support/Unlimilist/tasks` | Tasks |
 | `~/Library/Application Support/Unlimilist/notes` | Notes and the search index |
 | `~/Library/Application Support/Unlimilist/settings.json` | Settings |
+| macOS Keychain, item "Unlimilist" | The Notebook password for Secured Notes |
 
 ## Keyboard shortcuts
 

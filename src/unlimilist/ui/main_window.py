@@ -3,8 +3,8 @@
 from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import QElapsedTimer, QPoint, Qt, QTimer
-from PySide6.QtGui import QAction, QCursor, QKeySequence, QShortcut
+from PySide6.QtCore import QElapsedTimer, QEvent, QPoint, QRect, Qt, QTimer
+from PySide6.QtGui import QAction, QCursor, QKeySequence, QRegion, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -103,6 +103,12 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.sidebar)
         layout.addWidget(self.views, 1)
         self.setCentralWidget(central)
+        # Show Note lies over the sidebar's Tags: only the Tasks and Notebook items stay uncovered.
+        self.note_page = self.notebook_view.note_page
+        self.note_page.setParent(central)
+        self.note_page.hide()
+        self.notebook_view.noteShownChanged.connect(lambda _: self._place_note_page())
+        central.installEventFilter(self)
 
         self.new_task_action = QAction("＋ New Task", self)
         self.new_task_action.setShortcut(QKeySequence.StandardKey.New)
@@ -219,6 +225,26 @@ class MainWindow(QMainWindow):
         if warnings:
             self.statusBar().showMessage(f"{len(warnings)} file(s) could not be read — hover for details")
             self.statusBar().setToolTip("\n".join(warnings))
+
+    def eventFilter(self, watched, event) -> bool:
+        if watched is self.centralWidget() and event.type() == QEvent.Type.Resize:
+            self._place_note_page()
+        return super().eventFilter(watched, event)
+
+    def _place_note_page(self) -> None:
+        """Lay the Note page over the whole central area but the sidebar's view items, or hide it."""
+        page = self.note_page
+        if self.current_view() != "notebook" or not self.notebook_view.is_showing_note():
+            page.hide()
+            return
+        central = self.centralWidget()
+        views = self.sidebar.views
+        corner = QRect(views.mapTo(central, QPoint(0, 0)), views.size())
+        page.setGeometry(central.rect())
+        page.set_corner(corner.right() + 1, corner.bottom() + 1)
+        page.setMask(QRegion(central.rect()).subtracted(QRegion(corner)))
+        page.show()
+        page.raise_()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

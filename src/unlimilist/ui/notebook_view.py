@@ -71,6 +71,7 @@ def _sort_key(note: Note, column: int):
 
 
 class NotebookView(QWidget):
+    noteShownChanged = Signal(bool)  # a Note was opened (True) or the list is back (False)
     noteCreated = Signal(str)
     notesChanged = Signal()  # a Note was saved, opened or deleted: its Tags or dates may have changed
 
@@ -150,9 +151,15 @@ class NotebookView(QWidget):
         self.note_page.created.connect(self._created_on_page)
         self.note_page.saved.connect(lambda _: self.notesChanged.emit())
 
+        # Show Note takes this page's place. The main window lays the Note page over the sidebar's Tags; on its
+        # own, the Note page simply fills this slot.
+        self._note_slot = QWidget()
+        slot_layout = QVBoxLayout(self._note_slot)
+        slot_layout.setContentsMargins(0, 0, 0, 0)
+        slot_layout.addWidget(self.note_page)
         self._pages = QStackedWidget()
         self._pages.addWidget(table_page)
-        self._pages.addWidget(self.note_page)
+        self._pages.addWidget(self._note_slot)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._pages)
@@ -397,7 +404,15 @@ class NotebookView(QWidget):
         return self._pages.currentIndex() == 0
 
     def is_showing_note(self) -> bool:
-        return self._pages.currentWidget() is self.note_page
+        return self._pages.currentWidget() is self._note_slot
+
+    def _show_page(self, note: bool) -> None:
+        """The Note page or the list."""
+        changed = note != self.is_showing_note()
+        self._pages.setCurrentWidget(self._note_slot if note else self._pages.widget(0))
+        self.note_page.setVisible(note)
+        if changed:
+            self.noteShownChanged.emit(note)
 
     def open_note(self, note_id: str) -> bool:
         """Show a Note in View mode. A Secured Note needs the Notebook password, once a session."""
@@ -416,14 +431,14 @@ class NotebookView(QWidget):
         self._dismiss_toast()
         note = self._notebook.mark_opened(note_id)
         self.note_page.show_note(note, body)
-        self._pages.setCurrentWidget(self.note_page)
+        self._show_page(True)
         self.notesChanged.emit()
         return True
 
     def new_note(self) -> None:
         self.leave_note()
         self.note_page.start_new()
-        self._pages.setCurrentWidget(self.note_page)
+        self._show_page(True)
 
     def show_table(self) -> None:
         """Back to the list as it was (search, Tags, sort), saving the Note on the page. That Note is drawn
@@ -432,7 +447,7 @@ class NotebookView(QWidget):
         self.leave_note()
         if shown is not None and self._notebook.has_note(shown):
             self._selected = shown
-        self._pages.setCurrentIndex(0)
+        self._show_page(False)
         self.refresh()
         self._scroll_to_selected()
         if self._pending_highlight:
@@ -502,7 +517,7 @@ class NotebookView(QWidget):
                 return False
         if self.note_page.note_id() == note_id:
             self.note_page.close_note()  # its edits are saved first, then the file goes
-            self._pages.setCurrentIndex(0)
+            self._show_page(False)
         self._notebook.delete(note_id)
         self.refresh()
         self.notesChanged.emit()
@@ -516,7 +531,7 @@ class NotebookView(QWidget):
         # A new Note not saved yet: dropped without asking.
         self.note_page.start_new()  # emptied, so closing it saves nothing
         self.note_page.close_note()
-        self._pages.setCurrentIndex(0)
+        self._show_page(False)
         self.refresh()
 
     # Importing
@@ -541,7 +556,7 @@ class NotebookView(QWidget):
         if made:
             self.leave_note()
             self.clear_search()
-            self._pages.setCurrentIndex(0)
+            self._show_page(False)
             self.noteCreated.emit(made[-1])
             self.refresh()
             self.highlight(made[-1])

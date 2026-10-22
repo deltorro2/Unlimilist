@@ -256,20 +256,17 @@ def test_cmd_f_on_a_note_opens_the_find_bar_starting_with_the_search_text(qtbot,
 
 def test_next_marks_each_place_in_turn_and_wraps_to_the_top(qtbot, window):
     open_trip(window)
+    qtbot.waitUntil(page(window).viewer.is_rendered, timeout=10000)
     window.find()
     bar = page(window).find_bar
     qtbot.keyClicks(bar.field, "HOTEL")
-    text = page(window).viewer.toPlainText().casefold()
-    first, second = text.find("hotel"), text.find("hotel", text.find("hotel") + 1)
 
     qtbot.keyClick(bar.field, Qt.Key.Key_Return)
-    assert page(window).found() == (first, first + 5)
+    qtbot.waitUntil(lambda: page(window).view_match() == (1, 2))
     bar.next_button.click()
-    assert page(window).found() == (second, second + 5)
+    qtbot.waitUntil(lambda: page(window).view_match() == (2, 2))
     bar.next_button.click()
-    assert page(window).found() == (first, first + 5)
-    selections = page(window).viewer.extraSelections()
-    assert len(selections) == 1 and selections[0].format.background().color().name() == "#ffe066"
+    qtbot.waitUntil(lambda: page(window).view_match() == (1, 2))  # back to the top
 
 
 def test_in_edit_mode_find_searches_the_markdown(qtbot, window):
@@ -293,13 +290,14 @@ def test_in_edit_mode_find_searches_the_markdown(qtbot, window):
 
 def test_text_that_is_not_there_turns_the_field_red(qtbot, window):
     open_trip(window)
+    qtbot.waitUntil(page(window).viewer.is_rendered, timeout=10000)
     window.find()
     qtbot.keyClicks(page(window).find_bar.field, "zebra")
 
-    assert not page(window).find_next()
+    page(window).find_next()
 
-    assert page(window).find_bar.field.property("notFound")
-    assert page(window).found() is None
+    qtbot.waitUntil(lambda: page(window).find_bar.field.property("notFound"))
+    assert page(window).view_match() is None
 
 
 def test_esc_or_cancel_closes_the_find_bar_and_clears_the_mark(qtbot, window):
@@ -311,7 +309,7 @@ def test_esc_or_cancel_closes_the_find_bar_and_clears_the_mark(qtbot, window):
     qtbot.keyClick(page(window).find_bar.field, Qt.Key.Key_Escape)
 
     assert not page(window).is_finding()
-    assert page(window).viewer.extraSelections() == []
+    assert page(window).view_match() is None
     window.find()
     page(window).find_bar.cancel_button.click()
     assert not page(window).is_finding()

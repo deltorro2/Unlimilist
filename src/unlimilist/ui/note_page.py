@@ -58,6 +58,8 @@ CHEAT_SHEET = """
 <tr><td><code>&gt; quote</code></td><td>A quote</td></tr>
 <tr><td><code>---</code></td><td>A line across</td></tr>
 <tr><td><code>| A | B |</code><br><code>| --- | --- |</code><br><code>| 1 | 2 |</code></td><td>A table</td></tr>
+<tr><td><code>```mermaid</code><br><code>flowchart LR</code><br><code>&nbsp;&nbsp;A --&gt; B</code><br><code>```</code></td>
+<td>A diagram (Mermaid), drawn in View mode.<br>Close it with <code>```</code> on a line of its own.</td></tr>
 <tr><td>an empty line</td><td>A new paragraph</td></tr>
 </table>
 """

@@ -290,7 +290,9 @@ def test_the_info_button_opens_a_markdown_cheat_sheet_that_any_key_closes(qtbot,
     page(window).info_button.click()
     sheet = page(window).cheat_sheet
     assert sheet.isVisible()
-    assert "**bold**" in sheet.findChild(type(page(window).dates_label)).text()
+    text = sheet.findChild(type(page(window).dates_label)).text()
+    assert "**bold**" in text
+    assert "```mermaid" in text and "A diagram" in text  # how to write one, closing ``` included
 
     qtbot.keyClick(sheet, Qt.Key.Key_A)
     assert not sheet.isVisible()

@@ -112,7 +112,7 @@ A piece of Markdown text the user keeps for reference. It has a Title, a Body, T
 _Avoid_: Document, memo, page
 
 **Show Note**:
-How the Notebook shows one Note, in place of its table: in View mode the Body is rendered, and in Edit mode the Title, Type, Tags and the Body's Markdown can be changed. A new Note opens in Edit mode and an existing one in View mode. Edits are saved on leaving Edit mode, on leaving the Note, and every five minutes while editing. Showing a Note sets its Last opened date.
+How the Notebook shows one Note, in place of its table and over the sidebar's Tags (the Tasks and Notebook items stay): in View mode the Body is rendered, Mermaid diagrams included, and in Edit mode the Title, Type, Tags and the Body's Markdown can be changed. A new Note opens in Edit mode and an existing one in View mode. Edits are saved on leaving Edit mode, on leaving the Note, and every five minutes while editing. Showing a Note sets its Last opened date.
 _Avoid_: Note dialog, note editor, preview
 
 **Daily note**:

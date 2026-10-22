@@ -11,15 +11,9 @@ from datetime import datetime
 from PySide6.QtCore import QEvent, QObject, QSize, QStringListModel, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
-    QFont,
     QKeySequence,
     QShortcut,
-    QTextCharFormat,
     QTextCursor,
-    QTextDocument,
-    QTextFormat,
-    QTextFrameFormat,
-    QTextTable,
 )
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -33,7 +27,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPlainTextEdit,
     QStackedWidget,
-    QTextBrowser,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -45,6 +38,7 @@ from unlimilist.ui import password_dialogs
 from unlimilist.ui.flow_layout import FlowLayout
 from unlimilist.ui.icons import icon
 from unlimilist.ui.markdown_highlighter import MarkdownHighlighter
+from unlimilist.ui.note_viewer import NoteViewer
 
 AUTOSAVE_MS = 5 * 60 * 1000
 _TYPES = [(NoteType.OPEN, "Open", "lock-open"), (NoteType.SECURED, "Secured", "lock")]
@@ -64,63 +58,11 @@ CHEAT_SHEET = """
 <tr><td><code>&gt; quote</code></td><td>A quote</td></tr>
 <tr><td><code>---</code></td><td>A line across</td></tr>
 <tr><td><code>| A | B |</code><br><code>| --- | --- |</code><br><code>| 1 | 2 |</code></td><td>A table</td></tr>
+<tr><td><code>```mermaid</code><br><code>flowchart LR</code><br><code>&nbsp;&nbsp;A --&gt; B</code><br><code>```</code></td>
+<td>A diagram (Mermaid), drawn in View mode.<br>Close it with <code>```</code> on a line of its own.</td></tr>
 <tr><td>an empty line</td><td>A new paragraph</td></tr>
 </table>
 """
-
-
-def polish(document: QTextDocument) -> None:
-    """Give rendered Markdown room to breathe: space after paragraphs, lists and around headings, grey quotes,
-    and tables with padded, ruled cells. Qt's Markdown reader sets none of this."""
-    cursor = QTextCursor(document)
-    for frame in document.rootFrame().childFrames():
-        if isinstance(frame, QTextTable):
-            _polish_table(frame)
-    block = document.begin()
-    while block.isValid():
-        cursor.setPosition(block.position())
-        if cursor.currentTable() is None:
-            fmt = block.blockFormat()
-            if fmt.headingLevel():
-                fmt.setTopMargin(0 if block == document.begin() else 14)
-                fmt.setBottomMargin(6)
-            elif block.textList() is not None and block.next().textList() is not None:
-                fmt.setBottomMargin(3)
-            else:
-                fmt.setBottomMargin(10)
-            cursor.setBlockFormat(fmt)
-            if fmt.intProperty(QTextFormat.Property.BlockQuoteLevel):
-                cursor.select(QTextCursor.SelectionType.BlockUnderCursor)
-                quote = QTextCharFormat()
-                quote.setForeground(QColor("#5A5F6B"))
-                quote.setFontItalic(True)
-                cursor.mergeCharFormat(quote)
-        block = block.next()
-
-
-def _polish_table(table: QTextTable) -> None:
-    table_format = table.format()
-    table_format.setCellPadding(6)
-    table_format.setCellSpacing(0)
-    table_format.setBorder(1)
-    table_format.setBorderBrush(QColor("#D3D7E0"))
-    table_format.setBorderStyle(QTextFrameFormat.BorderStyle.BorderStyle_Solid)
-    table_format.setBorderCollapse(False)
-    table_format.setBottomMargin(10)
-    table.setFormat(table_format)
-    # After a quote, Qt's reader starts the first cell with an empty line, which pushes its text down.
-    first = table.cellAt(0, 0)
-    start = first.firstCursorPosition()
-    if not start.block().text() and start.block().next().position() <= first.lastCursorPosition().position():
-        start.movePosition(QTextCursor.MoveOperation.NextBlock)
-        start.deletePreviousChar()
-    header = QTextCharFormat()  # a Markdown table's first row is its header; Qt doesn't always make it bold
-    header.setFontWeight(QFont.Weight.Bold)
-    for column in range(table.columns()):
-        cell = table.cellAt(0, column)
-        cursor = cell.firstCursorPosition()
-        cursor.setPosition(cell.lastCursorPosition().position(), QTextCursor.MoveMode.KeepAnchor)
-        cursor.mergeCharFormat(header)
 
 
 def _gap(text: str, leading: bool) -> str:
@@ -424,11 +366,11 @@ class NotePage(QWidget):
         self.editor.setObjectName("noteEditor")
         self.editor.setPlaceholderText("Write in Markdown…")
         self._highlighter = MarkdownHighlighter(self.editor.document())
-        self.viewer = QTextBrowser()
-        self.viewer.setObjectName("noteViewer")
-        self.viewer.setOpenExternalLinks(True)
+        # The web viewer is made the first time a Note is viewed: the web engine is slow to start.
+        self._viewer: NoteViewer | None = None
+        self._view_match: tuple[int, int] | None = None  # Find in View mode: (active match, how many)
         self.body = QStackedWidget()
-        self.body.addWidget(self.viewer)
+        self.body.addWidget(QWidget())  # stands in for the viewer until it is made
         self.body.addWidget(self.editor)
 
         # Under the editor: the ⓘ that opens the Markdown cheat sheet.
@@ -449,7 +391,7 @@ class NotePage(QWidget):
         footer_layout.addStretch(1)
         footer_layout.addWidget(self.info_button)
 
-        body_box = self._body_box = QFrame()
+        body_box = self.body_box = QFrame()
         body_box.setObjectName("noteBody")
         body_layout = QVBoxLayout(body_box)
         body_layout.setContentsMargins(1, 1, 1, 1)
@@ -457,12 +399,20 @@ class NotePage(QWidget):
         body_layout.addWidget(self.body, 1)
         body_layout.addWidget(self.footer)
 
+        # The three header lines. Over the main window, they sit right of the sidebar's view items (see set_corner).
+        self.header = QWidget()
+        self._header_layout = QVBoxLayout(self.header)
+        self._header_layout.setContentsMargins(0, 0, 0, 0)
+        self._header_layout.setSpacing(6)
+        self._header_layout.addLayout(line1)
+        self._header_layout.addWidget(self.dates_label)
+        self._header_layout.addWidget(self.tag_area)
+
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)  # opaque, as it lies over the sidebar
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(6)
-        layout.addLayout(line1)
-        layout.addWidget(self.dates_label)
-        layout.addWidget(self.tag_area)
+        layout.addWidget(self.header)
         layout.addSpacing(4)
         layout.addWidget(body_box, 1)
 
@@ -484,12 +434,29 @@ class NotePage(QWidget):
         self._show_mode()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        if watched is self._body_box and event.type() == QEvent.Type.Resize:
+        if watched is self.body_box and event.type() == QEvent.Type.Resize:
             self._place_find_bar()
         return super().eventFilter(watched, event)
 
     def set_notebook(self, notebook: Notebook) -> None:
         self._notebook = notebook
+
+    @property
+    def viewer(self) -> NoteViewer:
+        if self._viewer is None:
+            self._viewer = NoteViewer()
+            self._viewer.findDone.connect(self._view_found)
+            placeholder = self.body.widget(0)
+            self.body.insertWidget(0, self._viewer)
+            self.body.removeWidget(placeholder)
+            placeholder.deleteLater()
+        return self._viewer
+
+    def set_corner(self, width: int, height: int) -> None:
+        """Leave the top-left `width` x `height` to the sidebar's view items: the header lines start right of
+        them, and the Body below them, across the full width."""
+        self._header_layout.setContentsMargins(width, 0, 0, 0)
+        self.header.setMinimumHeight(max(0, height - self.layout().contentsMargins().top()))
 
     def note_id(self) -> str | None:
         return self._note_id
@@ -600,16 +567,23 @@ class NotePage(QWidget):
         return self.find_bar.isVisible()
 
     def found(self) -> tuple[int, int] | None:
-        """(start, end) of the place found last, in the text on screen."""
+        """Edit mode: (start, end) of the place found last in the Markdown."""
         return self._found
 
+    def view_match(self) -> tuple[int, int] | None:
+        """View mode: (which match, how many) of the place found last; None before an answer or if none."""
+        return self._view_match
+
     def find_next(self) -> bool:
-        """Select the next place holding the text, after the last one found; after the last, start at the top."""
+        """Select the next place holding the text, after the last one found; after the last, start at the top.
+        In View mode the web engine answers a moment later (view_match)."""
         text = self.find_bar.field.text()
-        target = self._find_target()
         if not text:
             return False
-        document = target.document()
+        if not self._editing:
+            self.viewer.find(text)
+            return True
+        document = self.editor.document()
         start = self._found[1] if self._found else 0
         cursor = document.find(text, start)
         if cursor.isNull():
@@ -625,8 +599,8 @@ class NotePage(QWidget):
         if not self.find_bar.isVisible():
             return
         self.find_bar.hide()
-        self._mark_found(None)
-        self._find_target().setFocus()
+        self._restart_find()
+        (self.editor if self._editing else self.viewer).setFocus()
 
     def _escape(self) -> None:
         if self.is_finding():
@@ -634,22 +608,25 @@ class NotePage(QWidget):
         else:
             self.backClicked.emit()
 
-    def _find_target(self) -> QTextEdit | QPlainTextEdit:
-        return self.editor if self._editing else self.viewer
+    def _view_found(self, active: int, count: int) -> None:
+        self._view_match = (active, count) if count else None
+        self.find_bar.set_not_found(not count)
 
     def _restart_find(self) -> None:
         self.find_bar.set_not_found(False)
         self._mark_found(None)
+        self._view_match = None
+        if self._viewer is not None:
+            self._viewer.clear_find()
 
     def _mark_found(self, cursor: QTextCursor | None) -> None:
-        """Give the found place a yellow background and scroll to it; None clears the mark."""
-        for widget in (self.editor, self.viewer):
-            widget.setExtraSelections([])
+        """Give the found place in the Markdown a yellow background and scroll to it; None clears the mark."""
+        self.editor.setExtraSelections([])
         if cursor is None:
             self._found = None
             return
         self._found = (cursor.selectionStart(), cursor.selectionEnd())
-        target = self._find_target()
+        target = self.editor
         mark = QTextEdit.ExtraSelection()
         mark.cursor = cursor
         mark.format.setBackground(_FOUND)
@@ -661,7 +638,7 @@ class NotePage(QWidget):
 
     def _place_find_bar(self) -> None:
         self.find_bar.adjustSize()
-        self.find_bar.move(self._body_box.width() - self.find_bar.width() - 10, 10)
+        self.find_bar.move(self.body_box.width() - self.find_bar.width() - 10, 10)
 
     def show_cheat_sheet(self) -> None:
         self.cheat_sheet = CheatSheet(self)
@@ -694,7 +671,10 @@ class NotePage(QWidget):
             self._render()
         self._show_mode()
         # The focus goes into the Note, so its keys (Esc, ⌘F) work at once.
-        (self.editor if editing else self.viewer).setFocus()
+        if editing:
+            self.editor.setFocus()
+        elif self._open:
+            self.viewer.setFocus()
 
     def _show_mode(self) -> None:
         editing = self._editing
@@ -709,12 +689,15 @@ class NotePage(QWidget):
         self.lock_label.setVisible(not editing and self.note_type() == NoteType.SECURED)
         self.tag_area.set_editable(editing)
         self.footer.setVisible(editing)
-        self.body.setCurrentWidget(self.editor if editing else self.viewer)
+        self.body.setCurrentIndex(1 if editing else 0)  # 0: the viewer, or its stand-in until a Note is viewed
 
     def _render(self) -> None:
-        document = self.viewer.document()
-        document.setMarkdown(self.editor.toPlainText(), QTextDocument.MarkdownFeature.MarkdownDialectGitHub)
-        polish(document)
+        """Show the Body rendered, when a Note is being viewed. Unchanged text isn't loaded again."""
+        if not self._open or self._editing:
+            return
+        text = self.editor.toPlainText()
+        if self._viewer is None or self._viewer.markdown() != text:
+            self.viewer.set_markdown(text)
 
     def _type_chosen(self, index: int) -> None:
         """Making a Note Secured needs the Notebook password: created the first time, else typed once a session."""

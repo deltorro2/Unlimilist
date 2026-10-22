@@ -6,6 +6,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from conftest import rendered_text
 from unlimilist.board import Board
 from unlimilist.note_store import MarkdownNoteStore
 from unlimilist.notebook import Notebook, NoteType
@@ -212,7 +213,7 @@ def test_a_clicked_note_opens_in_view_mode_rendered(qtbot, window):
     assert page(window).title_edit.text() == "Lisbon"
     assert page(window).title_edit.isReadOnly()
     assert page(window).viewer.isVisible() and not page(window).editor.isVisible()
-    assert page(window).viewer.toPlainText().startswith("Day 1")  # the heading is rendered, no "#"
+    assert rendered_text(qtbot, page(window).viewer).startswith("Day 1")  # the heading is rendered, no "#"
     assert not page(window).type_box.isVisible()
     assert not page(window).tag_area.field.isVisible()
     assert [b.name for b in page(window).tag_area.bubbles()] == ["travel", "family"]
@@ -231,7 +232,7 @@ def test_edit_mode_edits_the_raw_markdown_and_leaving_it_saves(qtbot, window):
     page(window).view_button.click()
 
     assert window._notebook.note(note_id(window, "Lisbon")).body.endswith("## Day 2")
-    assert "Day 2" in page(window).viewer.toPlainText()
+    assert "Day 2" in rendered_text(qtbot, page(window).viewer)
 
 
 def test_back_saves_and_returns_to_the_table(qtbot, window):
@@ -289,7 +290,9 @@ def test_the_info_button_opens_a_markdown_cheat_sheet_that_any_key_closes(qtbot,
     page(window).info_button.click()
     sheet = page(window).cheat_sheet
     assert sheet.isVisible()
-    assert "**bold**" in sheet.findChild(type(page(window).dates_label)).text()
+    text = sheet.findChild(type(page(window).dates_label)).text()
+    assert "**bold**" in text
+    assert "```mermaid" in text and "A diagram" in text  # how to write one, closing ``` included
 
     qtbot.keyClick(sheet, Qt.Key.Key_A)
     assert not sheet.isVisible()
@@ -673,9 +676,10 @@ def row_pixels(window, row, table=None):
     table = table or view(window).table
     QApplication.processEvents()
     image = table.viewport().grab().toImage()
+    ratio = round(image.devicePixelRatio())  # 2 on a Retina screen: the image has two pixels per point
     rect = table.visualItemRect(table.item(row, TITLE))
-    x = rect.right() - 3
-    return [image.pixelColor(x, y).name() for y in range(rect.top(), rect.bottom() + 1)]
+    x = (rect.right() - 3) * ratio
+    return [image.pixelColor(x, y * ratio).name() for y in range(rect.top(), rect.bottom() + 1)]
 
 
 def test_every_title_is_bold_and_the_other_columns_are_regular(window):
@@ -733,8 +737,9 @@ def test_esc_on_a_note_goes_back_to_the_list_with_that_note_selected(qtbot, wind
     row = view(window).shown_ids().index(groceries)
     QApplication.processEvents()
     image = table.viewport().grab().toImage()
+    ratio = round(image.devicePixelRatio())
     rect = table.visualItemRect(table.item(row, TITLE))
-    assert image.pixelColor(rect.left() + 1, rect.center().y()).name() == SELECTED_ACCENT.name()
+    assert image.pixelColor((rect.left() + 1) * ratio, rect.center().y() * ratio).name() == SELECTED_ACCENT.name()
 
 
 def test_esc_in_edit_mode_saves_and_goes_back(qtbot, window):
@@ -776,3 +781,113 @@ def test_the_back_button_selects_the_note_too(qtbot, window):
     page(window).back_button.click()
 
     assert view(window).selected_id() == note_id(window, "Lisbon")
+
+
+# Show Note lies over the sidebar's Tags; the Tasks and Notebook items stay
+
+
+def test_a_shown_note_covers_the_sidebar_tags_but_not_the_view_items(qtbot, window):
+    click_row(qtbot, window, "Lisbon")
+    QApplication.processEvents()
+    central = window.centralWidget()
+    sidebar = window.sidebar
+    views = sidebar.views.geometry()
+
+    note = window.note_page
+    assert note.isVisible() and note.geometry() == central.rect()
+    assert not note.mask().contains(views.center())  # the view items stay uncovered
+    tags_point = sidebar.mapTo(central, sidebar.rect().center())
+    assert note.mask().contains(tags_point)  # the Tags are covered
+    body = note.body_box
+    assert body.mapTo(central, body.rect().topLeft()).x() < sidebar.width()  # the Body reaches under the sidebar
+    assert note.header.mapTo(central, note.title_edit.pos()).x() >= sidebar.width()  # the header lines start right
+    assert body.mapTo(central, body.rect().topLeft()).y() >= views.bottom()
+
+
+def test_the_view_items_still_work_while_a_note_is_shown(qtbot, window):
+    click_row(qtbot, window, "Groceries")
+    page(window).edit_button.click()
+    page(window).editor.setPlainText("- dates")
+    views = window.sidebar.views
+
+    qtbot.mouseClick(views.viewport(), Qt.MouseButton.LeftButton, pos=views.visualItemRect(views.item(0)).center())
+
+    assert window.current_view() == "tasks"
+    assert not window.note_page.isVisible()
+    assert window._notebook.note(note_id(window, "Groceries")).body == "- dates"
+
+
+def test_going_back_uncovers_the_tags(qtbot, window):
+    click_row(qtbot, window, "Lisbon")
+    page(window).back_button.click()
+
+    assert not window.note_page.isVisible()
+
+
+# Mermaid diagrams in View mode
+
+
+def svg_count(qtbot, viewer) -> int:
+    qtbot.waitUntil(viewer.is_rendered, timeout=10000)
+    answers = []
+    viewer.page().runJavaScript("document.querySelectorAll('.mermaid-block svg').length", 0, answers.append)
+    qtbot.waitUntil(lambda: bool(answers), timeout=10000)
+    return answers[0]
+
+
+def test_a_mermaid_block_is_drawn_as_a_diagram_in_view_mode(qtbot, window):
+    lisbon = note_id(window, "Lisbon")
+    window._notebook.save(lisbon, "Lisbon", "Plan:\n\n```mermaid\ngraph LR\n  Flight --> Hotel\n```", (), NoteType.OPEN)
+
+    view(window).open_note(lisbon)
+
+    assert svg_count(qtbot, page(window).viewer) == 1
+    assert "Flight" in rendered_text(qtbot, page(window).viewer)
+
+
+def test_a_broken_diagram_shows_its_code_under_an_error(qtbot, window):
+    lisbon = note_id(window, "Lisbon")
+    window._notebook.save(lisbon, "Lisbon", "```mermaid\nthis is not a diagram\n```", (), NoteType.OPEN)
+
+    view(window).open_note(lisbon)
+
+    text = rendered_text(qtbot, page(window).viewer)
+    assert "Diagram error" in text and "this is not a diagram" in text
+    assert svg_count(qtbot, page(window).viewer) == 0
+
+
+def test_a_clicked_link_opens_in_the_browser_not_in_the_app(qtbot, window, monkeypatch):
+    from PySide6.QtCore import QUrl
+    from PySide6.QtWebEngineCore import QWebEnginePage
+
+    from unlimilist.ui import note_viewer
+
+    opened = []
+    monkeypatch.setattr(note_viewer.QDesktopServices, "openUrl", lambda url: opened.append(url.toString()))
+    click_row(qtbot, window, "Lisbon")
+    viewer_page = page(window).viewer.page()
+
+    allowed = viewer_page.acceptNavigationRequest(
+        QUrl("https://example.com"), QWebEnginePage.NavigationType.NavigationTypeLinkClicked, True
+    )
+
+    assert not allowed and opened == ["https://example.com"]
+
+
+def test_the_test_datas_diagram_note_draws_nine_diagrams_and_shows_the_broken_one(qtbot, window):
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "scripts" / "make_test_notes.py"
+    spec = importlib.util.spec_from_file_location("make_test_notes", path)
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    lisbon = note_id(window, "Lisbon")
+    window._notebook.save(lisbon, "Lisbon", script.DIAGRAMS_BODY, (), NoteType.OPEN)
+
+    view(window).open_note(lisbon)
+
+    assert svg_count(qtbot, page(window).viewer) == 9
+    text = rendered_text(qtbot, page(window).viewer)
+    assert text.count("Diagram error") == 1
+    assert "The end" in text

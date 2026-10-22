@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QStandardPaths
+from PySide6.QtCore import QCoreApplication, QStandardPaths, Qt
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
@@ -158,6 +158,10 @@ def settings_file() -> Path:
 
 
 def main() -> int:
+    # View mode's web engine must be loaded, and contexts shared, before the QApplication exists.
+    QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    import PySide6.QtWebEngineWidgets  # noqa: F401
+
     app = QApplication(sys.argv)
     app.setApplicationName("Unlimilist")  # also names the data folder, so it keeps this spelling
     app.setWindowIcon(app_icon())
@@ -175,7 +179,9 @@ def main() -> int:
     )
     window.show()
     window.load_from(tasks_folder(), notes_folder=notes_folder())
-    return app.exec()
+    code = app.exec()
+    del window  # its web view must go before the web engine it uses, which the QApplication takes down
+    return code
 
 
 if __name__ == "__main__":

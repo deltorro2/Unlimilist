@@ -5,79 +5,131 @@
 <h1 align="center">UnlimiList</h1>
 
 <p align="center">
-  <b>The calm Kanban for people with too many Tasks.</b><br>
-  Every project, every deadline and every "someday" on one Board, and your notes beside it, on your Mac, offline.
+  <b>Task management and Markdown notes for professionals, in one local-first macOS app.</b><br>
+  A prioritising Kanban board for your work, and an encrypted, Mermaid-capable notebook for everything you know.
 </p>
 
 <p align="center">
-  <a href="https://github.com/deltorro2/Unlimilist/releases/latest"><img src="https://img.shields.io/github/v/release/deltorro2/Unlimilist?include_prereleases&label=download" alt="Latest release"></a>
+  <a href="https://github.com/deltorro2/Unlimilist/releases/latest"><img src="https://img.shields.io/github/v/release/deltorro2/Unlimilist?label=download" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-111111?logo=apple" alt="macOS on Apple Silicon">
   <img src="https://img.shields.io/badge/data-local--first-2ea44f" alt="Local-first">
+  <img src="https://img.shields.io/badge/notes-Markdown%20%2B%20Mermaid-2F6FED" alt="Markdown and Mermaid">
+  <img src="https://img.shields.io/badge/encryption-AES--256--GCM-6B7080" alt="AES-256-GCM">
 </p>
-
-
 
 ![The UnlimiList Board](docs/board.png)
 
-## Why UnlimiList?
+## Overview
 
-You juggle many activities, and each one throws off Tasks. Some have hard deadlines; most don't. You work on several at once, priorities shift every day, and every Task gathers its own phone numbers, links and snippets.
+UnlimiList is built for people who run several streams of work at once: client projects, engineering, operations and their own commitments. It combines two tools that usually live apart:
 
-Jira, Todoist and TickTick do a thousand things you'll never use. Trello does too little. **UnlimiList does the few things that matter, and does them well:** a clear Board, an honest order of what's next, everything you need for a Task right inside it, and a Notebook for everything that isn't a Task. No account, no cloud, no internet required.
+- **Tasks**: a Kanban board that keeps open-ended work and dated work side by side, and decides on its own what deserves attention next.
+- **Notes**: a Markdown notebook with live rendering, embedded Mermaid diagrams, full-text search and per-note encryption.
 
-## What you get
+Everything is stored as plain Markdown files on your Mac. There is no account, no cloud service and no network dependency. Your data stays readable, portable and under your control.
 
-- 🔒 **Your data stays yours.** Every Task and Note is a plain Markdown file on your Mac that you can read, back up or edit in any editor.
-- 🗂 **One Board, three Stages.** Inbox, In Process and Done. Drag a Task along as the work moves.
-- 📌 **Someday and deadline work, side by side.** Open-ended Tasks are ranked by your Priority on the left; dated Tasks are ordered by date on the right.
-- 🧭 **An order that thinks ahead.** The most urgent dated Task sits on top; later ones drift down among your Someday Tasks, a step for each month away, so nothing far off crowds today.
-- 🚨 **Never miss a date.** Late Tasks get a red border, and Tasks due today or tomorrow an amber stripe.
-- 🧾 **Context lives with the Task.** Rich-text Details for what the Task is, and Usable data for links, numbers and code snippets.
-- ✅ **Subtasks that mean it.** Checklists in the Details; a Task can't reach Done while any are open.
-- 🏷 **Tags with instant filtering.** Write `#client-x` anywhere in the Details, or add it to a Note; pick Tags in the sidebar to see just those Tasks and Notes. Autocomplete suggests the Tags you already use.
-- 📞 **Activities at a glance.** A badge on each card tells a call from a meeting, a question to ask, a coding session or a milestone.
-- 🧹 **Tidy up fast.** Select several Tasks and delete them in one go, or duplicate a Task to reuse it. Deleted files are kept, so nothing is lost by mistake.
-- 🗄 **Fold Done away.** A switch under Done folds it to a slim strip, so Inbox and In Process get the room; you can still drop Tasks on it to finish them.
-- 📓 **A Notebook beside the Board.** Keep reference notes in Markdown: a sortable table of every Note, a raw-Markdown editor with colouring, and a clean rendered view. Quick-add a note in one line, or import Markdown, text, CSV, Word and PDF files, as new Notes or into the Note you're writing.
-- 🔍 **Find any Note.** Search Titles and texts from the bar beside Quick note (⌘F); exact matches come first, then Notes holding some of the words. Inside a Note, ⌘F finds each place in turn.
-- 🔐 **Secured Notes.** Encrypt a Note's text with one Notebook password, kept in your Mac's Keychain.
-- 🔠 **Text at a size that suits you.** Pick one of five card font sizes in Settings (the gear, or ⌘,); the Board follows as you slide.
+## Tasks
 
-### Tags: focus on one client, one project, one theme
+### Smart prioritisation
 
-![The Board filtered by two Tags](docs/board-filtered.png)
+The Board doesn't just list Tasks. It orders them.
 
-### Everything about a Task in one place
+- **Two kinds of work in one column.** *Someday* Tasks (no dates) are ranked by your Priority. *Time-limited* Tasks (a start date, a deadline or both) are ordered by date. Both appear in a single, interleaved column.
+- **An order that thinks ahead.**
+  - The most urgent dated Task leads, followed by your top Someday Tasks.
+  - Later deadlines settle among the Someday work, one step further down for each month away.
+  - Today's work is never crowded out by commitments that are weeks away.
+- **Urgency at a glance.** Overdue Tasks and Tasks whose start date has passed are outlined in red. Tasks due today or tomorrow carry an amber marker.
+- **Stages that mean something.** Inbox, In Process and Done. A Task with unfinished Subtasks can't be completed, and work in progress can't be deleted by accident.
+
+### Everything a Task needs, inside the Task
 
 <p align="center">
   <img src="docs/task-dialog.png" width="620" alt="The Task dialog: Activity, Details with Subtasks, Usable data, dates and Priority">
 </p>
 
-### A Notebook for everything that isn't a Task
+- **Details** in rich text, with **Subtasks** as checklists.
+- **Usable data**: links, numbers and code snippets, kept with the Task.
+- **Activities**: General Task, Ask, Phone call, Meeting, Develop or Milestone, shown as a badge on each card.
+- **Tags** written inline as `#client-x`, with autocomplete. The sidebar filters the Board to one client, project or theme in a click.
 
-![The Notebook: every Note in one table](docs/notebook.png)
+![The Board filtered by two Tags](docs/board-filtered.png)
 
-Write a Note in one line with Quick note, or press **＋ New Note** for the full editor. Import Markdown, text, CSV, Word or PDF files, and they become Markdown. Notes share their Tags with Tasks, so one Tag in the sidebar shows both.
+### Built for daily use
 
-### Read it rendered, write it in Markdown
+- Drag and drop between Stages and Lanes. A Task that moves is briefly highlighted where it lands.
+- Quick add to the Inbox from a single line.
+- Multi-select delete, and duplicate a Task to reuse it. Deleted files are kept, so they can always be recovered.
+- Fold Done to a slim strip, so the active work gets the room.
+- Five card font sizes in Settings.
 
-![A Note in View mode](docs/note.png)
+## Notes
 
-Each Note opens in View mode, rendered with headings, lists, checkboxes, tables and links. Switch to **Edit** to change the Markdown, with colouring as you type and a cheat sheet behind the ⓘ. Edits save themselves. Make a Note **Secured**, and its text is encrypted with your Notebook password.
+### Markdown, written and read properly
 
-### Find it again
+![A Note in View mode, with Mermaid diagrams](docs/note.png)
 
-![A Notebook search: exact matches above partial ones](docs/notebook-search.png)
+- **Edit mode** is a raw Markdown editor with syntax colouring for headings, emphasis, code, links, lists, quotes and tables, plus a built-in cheat sheet.
+- **View mode** renders GitHub-flavoured Markdown: tables, task lists, strikethrough, code blocks and links. Links open in your browser.
+- **Mermaid diagrams are embedded.** A fenced ` ```mermaid ` block renders as a diagram in View mode: flowcharts, sequence, class, state and ER diagrams, Gantt charts, pie charts and mind maps.
+  - The diagram engine ships with the app, so rendering works fully offline.
+  - A malformed diagram shows its source next to a clear error.
+- **Edits save themselves**: when you leave Edit mode, when you leave the Note, and every five minutes.
 
-Type in **Search Notes** (⌘F): what's found turns green as you type. Press Enter to see the Notes that hold the whole text first, and below them the Notes that hold some of its words.
+![Edit mode: Markdown with syntax colouring](docs/note-edit.png)
 
-## Get started
+### Find anything
+
+![Search: exact matches above partial matches](docs/notebook-search.png)
+
+- **Search across all Notes** (⌘F), in titles and full text. Matches are highlighted as you type.
+- **Exact and partial matches** are listed separately: Notes containing the whole phrase come first, then Notes containing some of its words, ranked by relevance.
+- **Find in Note** (⌘F in an open Note) steps through every occurrence.
+- A search index keeps lookups instant on large notebooks.
+
+### Encryption where it matters
+
+- **Secured Notes** encrypt their content with **AES-256-GCM**. The key is derived from your Notebook password with **scrypt**, with a fresh salt and nonce on every save.
+- The Notebook password is checked against the **macOS Keychain** and never written to the app's own files. It's asked for once per session.
+- Titles and Tags stay readable, so encrypted Notes still sort, filter and appear in search by title.
+- The password can be changed at any time; every Secured Note is re-encrypted in one step.
+
+### Bring your documents in
+
+![The Notebook](docs/notebook.png)
+
+- **Import** Markdown, plain text, CSV (as a table), Word (.docx) and PDF files. Each becomes Markdown, either as a new Note or inserted into the Note you're editing.
+- **Quick note** captures a thought in one line. A Note with text but no title becomes a dated *Daily note*.
+- **Tags are shared with Tasks**, so one Tag in the sidebar brings up the related Tasks and Notes together.
+
+## Your data
+
+- **Plain files.** Every Task and every Note is one Markdown file with a small YAML header, readable in any editor and easy to back up, sync or version.
+- **Local only.** No account, no telemetry, no internet connection required.
+- **Recoverable.** Deleted Tasks and Notes are renamed, not erased. The only exception is Secured Notes, which are removed for good.
+
+| Location | Contents |
+|---|---|
+| `~/Library/Application Support/Unlimilist/tasks` | Tasks |
+| `~/Library/Application Support/Unlimilist/notes` | Notes and the search index |
+| `~/Library/Application Support/Unlimilist/settings.json` | Settings |
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| ⌘N | New Task (Board) or New Note (Notebook) |
+| ⌘F | Search Notes, or Find in the open Note |
+| Esc | Close the open Note and return to the list |
+| ⌘, | Settings |
+
+## Install
 
 1. Download **Unlimilist-&lt;version&gt;.dmg** from the [latest release](https://github.com/deltorro2/Unlimilist/releases/latest).
-2. Open it and drag **Unlimilist** onto **Applications**.
-3. The first time, right-click the app in Applications and choose **Open**, then **Open** again. The app isn't notarized by Apple yet, so macOS asks once.
+2. Open it and drag **UnlimiList** onto **Applications**.
+3. On first launch, right-click the app and choose **Open**: the app isn't notarized by Apple yet.
 
-UnlimiList runs on macOS on Apple Silicon. Windows support is available on demand.
+**Requirements:** macOS on Apple Silicon. Windows support is available on request.
 
 ---
 
@@ -87,7 +139,8 @@ UnlimiList is a Python 3.13 desktop app built with [PySide6](https://doc.qt.io/q
 
 | | |
 |---|---|
-| Runtime | Python 3.13, PySide6 (Qt 6), PyYAML, cryptography, keyring, mammoth, pypdf |
+| Runtime | Python 3.13, PySide6 (Qt 6) with Qt WebEngine, PyYAML, markdown-it-py, cryptography, keyring, mammoth, pypdf |
+| Bundled | mermaid.js 11.4.1 (MIT), in `src/unlimilist/assets/mermaid` |
 | Tests | pytest, pytest-qt, python-docx |
 | Packaging | PyInstaller (`.app`), dmgbuild (`.dmg`) |
 | Environment | [uv](https://docs.astral.sh/uv/) |
@@ -122,6 +175,7 @@ src/unlimilist/
   notebook.py      the Notebook: Notes, Titles, Daily notes, Tags, Secured Notes; no Qt
   note_store.py    one Markdown file per Note
   note_import.py   Markdown, text, CSV, Word and PDF files to Markdown
+  note_html.py     a Note's Markdown as the HTML page View mode shows; Mermaid blocks left for mermaid.js
   note_search.py   the Notebook search: Exact and Partial matches, and its index file
   secure.py        encrypting a Secured Note's Body (AES-GCM, scrypt)
   notebook_password.py  the Notebook password, checked against the Keychain

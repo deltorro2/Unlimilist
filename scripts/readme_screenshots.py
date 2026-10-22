@@ -2,16 +2,26 @@
 
     uv run python scripts/readme_screenshots.py
 
-Writes docs/board.png, docs/board-filtered.png, docs/task-dialog.png, docs/notebook.png, docs/notebook-search.png and
-docs/note.png. The Board and Notebook live in memory only, and their clocks are pinned so every Urgency (Due soon,
+It draws off the screen at 2x (Retina) size, whatever screen you have, with the web view (View mode) in software, so
+its diagrams are captured too.
+
+Writes docs/board.png, docs/board-filtered.png, docs/task-dialog.png, docs/notebook.png, docs/notebook-search.png,
+docs/note.png (View mode, with Mermaid diagrams) and docs/note-edit.png (Edit mode). The Board and Notebook live in memory only, and their clocks are pinned so every Urgency (Due soon,
 Overdue, Start passed) and every date shows up the same way on every run.
 """
 
+import os
 import sys
+import time
+
+# Before Qt starts: off the screen, at 2x, and the web view drawn in software so grab() can capture it.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ.setdefault("QT_SCALE_FACTOR", "2")
+os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu")
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QCoreApplication, Qt
 from PySide6.QtWidgets import QApplication, QWidget
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -91,35 +101,73 @@ def synthetic_board() -> tuple[Board, str]:
     return board, showcase.id
 
 
-LISBON = """# Lisbon, five days
+ARCHITECTURE = """# Payments service: architecture
 
-The plan for **May**: slow mornings, one big sight a day, and *no* taxis.
+The payments service takes **card and bank payments** for the web shop. It runs as three containers
+behind the API gateway; this Note is the reference for the *Q4 hardening* work.
 
-## Places
+## Request flow
 
-- Alfama and tram 28, early, before the crowds
-- Belém, for the tower and the `pastéis`
-- Sintra on a weekday
+```mermaid
+flowchart LR
+  client([Web shop]) --> gateway[API gateway]
+  gateway --> api[Payments API]
+  api --> queue[(Event queue)]
+  queue --> worker[Settlement worker]
+  worker --> bank[[Bank adapter]]
+  api --> db[(Postgres)]
+```
 
-## Before we go
+## Checkout sequence
 
-- [x] Passports
-- [x] Book the flat near Graça
-- [ ] Travel insurance
+```mermaid
+sequenceDiagram
+  participant Shop
+  participant API as Payments API
+  participant Bank
+  Shop->>API: POST /payments
+  API->>Bank: authorise
+  Bank-->>API: approved
+  API-->>Shop: 201 Created
+```
 
-| Day | Plan |
-| --- | --- |
-| Mon | Alfama, fado in the evening |
-| Tue | Belém and the river |
-| Wed | Sintra |
+## Service levels
 
-> Ask Ana about the restaurant with the blue tiles.
+| Endpoint | p95 latency | Error budget |
+| --- | --- | --- |
+| `POST /payments` | 180 ms | 0.1 % |
+| `GET /payments/{id}` | 40 ms | 0.5 % |
 
-[Visit Lisboa](https://www.visitlisboa.com)
+## Open items
+
+- [x] Retry with back-off on bank timeouts
+- [x] Idempotency keys on `POST /payments`
+- [ ] Alert on settlement lag over 5 minutes
+
+> Owner: platform team. Review the error budget every sprint.
+"""
+
+ROADMAP = """# Q4 roadmap
+
+Three themes for the quarter: **reliability**, **onboarding** and the *public beta*.
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Reliability
+  Payments hardening   :done,   r1, 2026-10-01, 14d
+  Settlement alerts    :active, r2, after r1, 10d
+  section Beta
+  Invite list          :        b1, 2026-10-20, 7d
+  Public beta          :milestone, b2, 2026-11-12, 0d
+```
+
+- Payments hardening: see *Payments service: architecture*
+- Onboarding guide: draft in review
 """
 
 
-def synthetic_notebook() -> tuple[Notebook, str]:
+def synthetic_notebook() -> tuple[Notebook, str, str]:
     now = [datetime.combine(TODAY - timedelta(days=12), datetime.min.time()).replace(hour=8)]
 
     def clock() -> datetime:
@@ -128,17 +176,18 @@ def synthetic_notebook() -> tuple[Notebook, str]:
 
     notebook = Notebook(clock=clock)
     add = notebook.create
-    add("Reading list", "- Designing Data-Intensive Applications\n- The Overstory", tags=("reading",))
-    add("Lisbon hotel shortlist", "Graça, Alfama or Príncipe Real.", tags=("travel",))
-    add("Client X kickoff notes", "Goals, budget, the hotel booking for the team.", tags=("client-x", "work"))
-    add("Wi-Fi and alarm codes", "Router: …\nAlarm: …", tags=("home",), note_type=NoteType.SECURED, password="demo")
-    add("Garden plan", "Tomatoes along the fence, herbs by the door.", tags=("garden", "home"))
-    add("", "Ran 5 km along the river. Slept well.", tags=("health",))  # a Daily note
-    add("Release 2.0 checklist", "- [ ] Screenshots\n- [ ] DMG\n- [ ] Notes", tags=("release", "work"))
-    lisbon = add("Trip to Lisbon", LISBON, tags=("travel", "family"))
-    for title in ("Reading list", "Garden plan"):
+    add("Reading list", "- Designing Data-Intensive Applications\n- Release It!", tags=("reading",))
+    add("Client X kickoff notes", "Goals, budget, the payments release date and the team.", tags=("client-x", "work"))
+    add("Production access keys", "Gateway: …\nDatabase: …", tags=("work",), note_type=NoteType.SECURED, password="demo")
+    add("Incident review: settlement lag", "Root cause: the payments worker stalled on a bank timeout.", tags=("work",))
+    add("", "Shipped the retry fix. Calm on-call week.", tags=("journal",))  # a Daily note
+    add("Hiring loop: backend engineer", "Four interviews, one take-home.", tags=("hiring", "work"))
+    roadmap = add("Q4 roadmap", ROADMAP, tags=("planning", "work"))
+    add("Payments release checklist", "- [ ] Load test\n- [ ] Runbook\n- [ ] Release notes", tags=("release", "work"))
+    architecture = add("Payments service: architecture", ARCHITECTURE, tags=("architecture", "work"))
+    for title in ("Reading list", "Q4 roadmap"):
         notebook.mark_opened(next(n.id for n in notebook.notes() if n.title == title))
-    return notebook, lisbon.id
+    return notebook, architecture.id, roadmap.id
 
 
 def settle(app: QApplication) -> None:
@@ -147,13 +196,28 @@ def settle(app: QApplication) -> None:
 
 
 def save(widget: QWidget, path: Path) -> None:
-    image = QPixmap(widget.size() * SCALE)
-    image.setDevicePixelRatio(SCALE)
-    widget.render(image)
-    image.save(str(path))
+    """The widget as on screen, at the screen's resolution (Retina here). grab() also catches the web view's
+    content, which render() leaves blank."""
+    widget.grab().save(str(path))
+
+
+def wait_rendered(app: QApplication, viewer) -> None:
+    """Until View mode's web page, diagrams included, is drawn."""
+    for _ in range(300):
+        if viewer.is_rendered():
+            break
+        app.processEvents()
+        time.sleep(0.02)
+    for _ in range(20):  # a moment more for the last paint
+        app.processEvents()
+        time.sleep(0.02)
 
 
 def main() -> int:
+    # View mode's web engine has to be loaded before the QApplication exists, as in the app.
+    QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    import PySide6.QtWebEngineWidgets  # noqa: F401
+
     app = QApplication(sys.argv)
     app.setApplicationName("Unlimilist")
     app.setStyle("Fusion")
@@ -163,7 +227,7 @@ def main() -> int:
     board, showcase_id = synthetic_board()
     out = ROOT / "docs"
 
-    notebook, lisbon_id = synthetic_notebook()
+    notebook, architecture_id, roadmap_id = synthetic_notebook()
     window = MainWindow(board, notebook=notebook)
     window.resize(1500, 950)
     window.show()
@@ -189,17 +253,24 @@ def main() -> int:
     save(window, out / "notebook.png")
 
     notes = window.notebook_view
-    notes.search_field.setText("lisbon hotel")
-    notes.apply_search("lisbon hotel")
+    notes.search_field.setText("payments release")
+    notes.apply_search("payments release")
     settle(app)
+    notes.toast().dismiss()
     save(window, out / "notebook-search.png")
     notes.clear_search()
 
-    notes.open_note(lisbon_id)
-    settle(app)
+    notes.open_note(architecture_id)
+    wait_rendered(app, notes.note_page.viewer)
     save(window, out / "note.png")
 
+    notes.note_page.edit_button.click()
+    settle(app)
+    save(window, out / "note-edit.png")
+    notes.show_table()
+
     print(f"Wrote the Board, Task dialog and Notebook screenshots in {out}")
+    del window  # its web view goes before the web engine
     return 0
 
 

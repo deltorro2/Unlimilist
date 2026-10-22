@@ -396,9 +396,9 @@ def test_window_has_the_app_icon(window):
 
 def test_toolbar_shows_the_app_name_with_its_version(window):
     title = window.app_title
-    assert (title.name(), title.version()) == ("UnlimiList", "2.0")
-    assert title.accessibleName() == "UnlimiList 2.0"
-    assert window.windowTitle() == "UnlimiList 2.0"
+    assert (title.name(), title.version()) == ("UnlimiList", "2.1")
+    assert title.accessibleName() == "UnlimiList 2.1"
+    assert window.windowTitle() == "UnlimiList 2.1"
     assert title.tag() is None
 
 
@@ -408,8 +408,8 @@ def test_a_test_build_shows_test_after_the_version(qtbot, board):
     title = window.app_title
 
     assert title.tag() == "TEST"
-    assert title.accessibleName() == "UnlimiList 2.0 TEST"
-    assert window.windowTitle() == "UnlimiList 2.0 TEST"
+    assert title.accessibleName() == "UnlimiList 2.1 TEST"
+    assert window.windowTitle() == "UnlimiList 2.1 TEST"
     assert title.tag_rect().left() > title.version_rect().right()
 
 

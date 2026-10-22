@@ -221,7 +221,7 @@ uv run python scripts/make_test_tasks.py            # add or refresh the test Ta
 uv run python scripts/make_test_tasks.py --remove   # remove them again
 ```
 
-The `test-notes` folder gets 11 made-up Open Notes the same way (`scripts/make_test_notes.py`). They are all Open, because a Secured Note needs your Notebook password: make those in the test app.
+The `test-notes` folder gets 12 made-up Open Notes the same way (`scripts/make_test_notes.py`), one of them a long Note with ten Mermaid diagrams (one broken on purpose). They are all Open, because a Secured Note needs your Notebook password: make those in the test app.
 
 Other Tasks and Notes you create while testing stay in the test folders until you delete them.
 

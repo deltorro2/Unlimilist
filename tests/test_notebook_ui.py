@@ -872,3 +872,22 @@ def test_a_clicked_link_opens_in_the_browser_not_in_the_app(qtbot, window, monke
     )
 
     assert not allowed and opened == ["https://example.com"]
+
+
+def test_the_test_datas_diagram_note_draws_nine_diagrams_and_shows_the_broken_one(qtbot, window):
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "scripts" / "make_test_notes.py"
+    spec = importlib.util.spec_from_file_location("make_test_notes", path)
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    lisbon = note_id(window, "Lisbon")
+    window._notebook.save(lisbon, "Lisbon", script.DIAGRAMS_BODY, (), NoteType.OPEN)
+
+    view(window).open_note(lisbon)
+
+    assert svg_count(qtbot, page(window).viewer) == 9
+    text = rendered_text(qtbot, page(window).viewer)
+    assert text.count("Diagram error") == 1
+    assert "The end" in text

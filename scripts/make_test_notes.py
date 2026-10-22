@@ -6,8 +6,8 @@
 
 The default folder is ~/Library/Application Support/Unlimilist/test-notes (the test build's), never your real
 notes folder. Every test Note is a file named manual-test-NN.md, so other Notes you made while testing stay. They
-are all Open: a Secured Note needs your Notebook password, so make those in the app. Quit the app before running
-this: the app reads the folder when it starts.
+are all Open (one is a long Note full of Mermaid diagrams): a Secured Note needs your Notebook password, so make
+those in the app. Quit the app before running this: the app reads the folder when it starts.
 """
 
 import argparse
@@ -55,6 +55,176 @@ flight TP 1234, 07:40
 """
 
 
+DIAGRAMS_BODY = """# Every kind of diagram
+
+A long Note with many Mermaid diagrams between ordinary Markdown, to check View mode: each diagram draws, wide ones
+scale down to fit, the text between them keeps its spacing, and Find in Note still finds words around them.
+The last diagram is broken on purpose: it shows its code under a red error.
+
+## 1. Flowchart: how a release goes
+
+Features land on **dev**; a pull request brings them to *main*, where releases are tagged.
+
+```mermaid
+flowchart LR
+  idea([Idea]) --> grill{Grilled?}
+  grill -- no --> idea
+  grill -- yes --> dev[Build on dev]
+  dev --> tests{Tests green?}
+  tests -- no --> dev
+  tests -- yes --> pr[Pull request]
+  pr --> main[(main)]
+  main --> tag[Tag vX.Y.Z]
+  tag --> dmg[/DMG on GitHub/]
+```
+
+- [x] Grill the idea
+- [x] Build it test-first
+- [ ] Publish the release
+
+## 2. Sequence: Esc on a shown Note
+
+```mermaid
+sequenceDiagram
+  actor You
+  participant Shown as Show Note
+  participant List as Notebook list
+  You->>Shown: press Esc
+  Shown->>Shown: save the edits
+  Shown-->>List: back, same search and sort
+  List-->>You: the Note left is selected
+  Note over You,List: With the Find bar open, Esc closes only the bar
+```
+
+> Tip: the same works with the ← Notebook button.
+
+## 3. Class diagram: the Notebook's parts
+
+```mermaid
+classDiagram
+  class Notebook {
+    +notes() list
+    +create(title, body) Note
+    +save(id, title, body) Note
+    +delete(id)
+  }
+  class Note {
+    +id
+    +title
+    +body
+    +tags
+    +secured bool
+  }
+  class NoteSearch {
+    +search(text) SearchResult
+    +flush()
+  }
+  Notebook "1" --> "*" Note : owns
+  NoteSearch --> Notebook : indexes
+```
+
+## 4. State diagram: a Task's Stages
+
+```mermaid
+stateDiagram-v2
+  [*] --> Inbox
+  Inbox --> InProcess : start
+  InProcess --> Inbox : put back
+  InProcess --> Done : finish
+  Inbox --> Done : finish
+  Done --> InProcess : reopen
+  Done --> [*]
+```
+
+| Stage | Can be deleted | Lanes |
+| --- | --- | --- |
+| Inbox | yes | Someday, Time-limited |
+| In Process | no | Someday, Time-limited |
+| Done | yes | one list |
+
+## 5. Gantt: a week of work
+
+```mermaid
+gantt
+  title Release week
+  dateFormat YYYY-MM-DD
+  section Build
+  Notebook search     :done,    s1, 2026-10-19, 2d
+  Raised rows         :done,    s2, after s1, 1d
+  Mermaid in View     :active,  s3, after s2, 2d
+  section Ship
+  Test build          :         s4, after s3, 1d
+  Release 2.1         :milestone, s5, after s4, 0d
+```
+
+## 6. Pie: where the time went
+
+```mermaid
+pie showData
+  title Time this week
+  "Building" : 45
+  "Testing" : 30
+  "Grilling" : 15
+  "Releasing" : 10
+```
+
+## 7. Entity relationship: the files
+
+```mermaid
+erDiagram
+  TASK ||--o{ TAG : has
+  NOTE ||--o{ TAG : has
+  NOTE ||--o| SECURED_BODY : "may have"
+  TASK {
+    string id
+    string title
+    string stage
+  }
+  NOTE {
+    string id
+    string title
+    string type
+  }
+```
+
+## 8. Mind map: ideas for next time
+
+```mermaid
+mindmap
+  root((UnlimiList))
+    Board
+      Folded Done
+      Card font size
+    Notebook
+      Search
+      Secured Notes
+      Mermaid
+    Someday
+      Sync between Macs
+      Reminders
+```
+
+## 9. A wide flowchart that has to shrink to fit
+
+```mermaid
+flowchart LR
+  a1[Step one] --> a2[Step two] --> a3[Step three] --> a4[Step four] --> a5[Step five]
+  a5 --> a6[Step six] --> a7[Step seven] --> a8[Step eight] --> a9[Step nine] --> a10[Step ten]
+```
+
+## 10. A broken diagram (on purpose)
+
+```mermaid
+flowchart LR
+  this line --> is not ( valid mermaid
+```
+
+## The end
+
+Some closing text after all the diagrams, with a [link to Mermaid's docs](https://mermaid.js.org) and `code`.
+"""
+
+
 def default_folder() -> Path:
     QCoreApplication.setApplicationName("Unlimilist")  # the same folder the app uses
     return Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)) / "test-notes"
@@ -89,6 +259,7 @@ def test_notes() -> list[dict]:
              body="| Month | Rent | Food |\n| --- | --- | --- |\n"
              + "\n".join(f"| {month} | 900 | {300 + n * 7} |" for n, month in enumerate(
                  "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()))),
+        dict(title="Every kind of diagram", body=DIAGRAMS_BODY, tags=("diagrams", "work"), created=3, opened=None),
     ]
 
 

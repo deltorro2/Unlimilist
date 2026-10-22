@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/deltorro2/Unlimilist/releases/latest"><img src="https://img.shields.io/github/v/release/deltorro2/Unlimilist?label=download" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-111111?logo=apple" alt="macOS on Apple Silicon">
+  <img src="https://img.shields.io/badge/macOS%2014%2B-Apple%20Silicon%20%7C%20Intel-111111?logo=apple" alt="macOS 14+ on Apple Silicon and Intel">
   <img src="https://img.shields.io/badge/data-local--first-2ea44f" alt="Local-first">
   <img src="https://img.shields.io/badge/notes-Markdown%20%2B%20Mermaid-2F6FED" alt="Markdown and Mermaid">
   <img src="https://img.shields.io/badge/encryption-AES--256--GCM-6B7080" alt="AES-256-GCM">
@@ -150,11 +150,13 @@ Either way:
 
 ## Install
 
-1. Download **Unlimilist-&lt;version&gt;.dmg** from the [latest release](https://github.com/deltorro2/Unlimilist/releases/latest).
+1. Download the DMG for your Mac from the [latest release](https://github.com/deltorro2/Unlimilist/releases/latest). Not sure which? Open Apple menu › About This Mac: **Chip** (Apple M1, M2, …) means Apple Silicon, and **Processor** (Intel …) means Intel.
+   - **Apple Silicon:** `Unlimilist-<version>-AppleSilicon.dmg` (up to 2.1.0: `Unlimilist-<version>.dmg`)
+   - **Intel:** `Unlimilist-<version>-Intel.dmg`
 2. Open it and drag **UnlimiList** onto **Applications**.
 3. On first launch, right-click the app and choose **Open**: the app isn't notarized by Apple yet.
 
-**Requirements:** macOS on Apple Silicon. Windows support is available on request.
+**Requirements:** macOS 14 Sonoma or later, on Apple Silicon or Intel. Windows support is available on request.
 
 ---
 
@@ -212,7 +214,8 @@ src/unlimilist/
 tests/             test_board.py (domain), test_notebook.py, test_note_import.py, test_secured_notes.py,
                    test_note_search.py, test_ui.py, test_notebook_ui.py, test_note_search_ui.py, test_settings.py, test_highlight.py, test_fold_done.py,
                    test_loading.py, test_delete_and_duplicate.py, test_data_folders.py
-scripts/           build_app.sh, build_dmg.sh, make_test_tasks.py, make_test_notes.py, readme_screenshots.py
+scripts/           build_app.sh, build_dmg.sh, setup_intel_env.sh, make_test_tasks.py, make_test_notes.py,
+                   readme_screenshots.py
 docs/adr/          architecture decision records
 CONTEXT.md         the glossary: the words the code and the UI use
 ```
@@ -221,7 +224,8 @@ CONTEXT.md         the glossary: the words the code and the UI use
 
 ```sh
 ./scripts/build_app.sh               # dist/Unlimilist.app: the normal build, reads your real Tasks and Notes
-./scripts/build_dmg.sh               # the normal app, then dist/Unlimilist-<version>.dmg
+./scripts/build_dmg.sh               # the normal app, then dist/Unlimilist-<version>-AppleSilicon.dmg
+./scripts/build_dmg.sh --intel       # the Intel app, then dist/Unlimilist-<version>-Intel.dmg
 ./scripts/build_app.sh --test        # dist/Unlimilist Test.app: for manual testing, reads the test folders
 ```
 
@@ -234,7 +238,8 @@ CONTEXT.md         the glossary: the words the code and the UI use
 
 - **App:** `build_app.sh` stamps the bundle with the app version and ad-hoc signs it, so it runs on the Mac that built it. On Windows or Linux it builds a plain executable folder instead.
 - **DMG:** shows the app beside an Applications shortcut. The layout is in `scripts/dmg_settings.py` and is written by dmgbuild, so building needs no Finder permissions.
-- **Signing:** builds are Apple Silicon (arm64) only, and not signed with an Apple Developer ID or notarized.
+- **Intel:** `--intel` builds into `dist/intel/` with an Intel Python run under Rosetta, in `.venv-intel`. `setup_intel_env.sh` makes it on first use. The Intel build pins `cryptography` to 48.0.1, its last Intel Mac wheel ([ADR 0006](docs/adr/0006-the-intel-build-pins-cryptography-48.md)). Before an Intel release, run the tests under that Python: `arch -x86_64 .venv-intel/bin/python -m pytest`.
+- **Signing:** builds are ad-hoc signed, not signed with an Apple Developer ID or notarized.
 - **Output:** `build/`, `dist/` and the generated `*.spec` file are not committed.
 
 ## Data

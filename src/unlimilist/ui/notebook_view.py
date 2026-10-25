@@ -144,6 +144,7 @@ class NotebookView(QWidget):
         table_layout.addWidget(self.partial_label)
         table_layout.addWidget(self.partial_table, 1)
         table_layout.addWidget(self.empty_label, 1)
+        table_layout.addStretch(0)  # takes the room the search results leave over
 
         self.note_page = NotePage(notebook, password, suggest_tags)
         self.note_page.backClicked.connect(self.show_table)
@@ -261,6 +262,10 @@ class NotebookView(QWidget):
                 self._paint_highlight(self._strength)
             else:
                 self._stop_highlight()
+        # A search's tables are only as tall as their rows (scrolling when they are many), so the Partial
+        # matches follow the Exact ones at once; without a search the one table fills the window.
+        for table in (self.table, self.partial_table):
+            table.setMaximumHeight(_rows_height(table) if searching else _NO_LIMIT)
         self.table.setVisible(bool(notes))
         self.exact_label.setVisible(searching and bool(notes))
         self.partial_table.setVisible(bool(partial))
@@ -581,6 +586,15 @@ class NotebookView(QWidget):
         if refused:
             QMessageBox.warning(self, "Import", "Some files were not imported:\n\n" + "\n".join(refused))
         return converted
+
+
+_NO_LIMIT = 16777215  # QWIDGETSIZE_MAX
+
+
+def _rows_height(table: QTableWidget) -> int:
+    """The height that shows every row of `table` and its header, without scrolling."""
+    rows = sum(table.rowHeight(row) for row in range(table.rowCount()))
+    return table.horizontalHeader().sizeHint().height() + rows + 2 * table.frameWidth()
 
 
 def _row_id(table: QTableWidget, row: int) -> str:

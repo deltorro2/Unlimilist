@@ -333,3 +333,45 @@ def test_a_new_search_or_opening_a_note_dismisses_the_partial_match_toast(qtbot,
     search(qtbot, window, "river sardines nowhere")
     view(window).open_note(view(window).partial_ids()[0])
     assert not view(window).toast().isVisible()
+
+
+# The results' layout: each table only as tall as its rows
+
+
+def table_content_height(table) -> int:
+    rows = sum(table.rowHeight(row) for row in range(table.rowCount()))
+    return table.horizontalHeader().height() + rows + 2 * table.frameWidth()
+
+
+def test_a_short_exact_table_is_only_as_tall_as_its_rows_with_the_partial_matches_right_under_it(qtbot, window):
+    search(qtbot, window, "lisbon hotel")  # 1 exact match, 2 partial
+    QApplication.processEvents()
+    exact_table, partial_table = view(window).table, view(window).partial_table
+
+    assert exact_table.height() <= table_content_height(exact_table) + 2
+    gap = view(window).partial_label.y() - (exact_table.y() + exact_table.height())
+    assert gap <= 24  # the next heading follows at once, not halfway down the window
+    assert partial_table.height() <= table_content_height(partial_table) + 2
+
+
+def test_without_a_search_the_table_fills_the_window_again(qtbot, window):
+    search(qtbot, window, "lisbon hotel")
+    view(window).clear_search()
+    QApplication.processEvents()
+
+    table = view(window).table
+    assert table.height() > table_content_height(table) + 100  # it takes the room, rows or not
+
+
+def test_many_matches_share_the_room_and_scroll(qtbot, window):
+    for number in range(40):
+        window._notebook.create(f"Lisbon hotel option {number}", "")
+        window._notebook.create(f"Lisbon note {number}", "")
+    search(qtbot, window, "lisbon hotel")
+    QApplication.processEvents()
+    exact_table, partial_table = view(window).table, view(window).partial_table
+
+    page_bottom = view(window).height()
+    assert partial_table.y() + partial_table.height() <= page_bottom
+    assert exact_table.height() < table_content_height(exact_table)  # it scrolls instead
+    assert partial_table.height() > 100

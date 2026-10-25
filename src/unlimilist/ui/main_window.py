@@ -82,6 +82,7 @@ class MainWindow(QMainWindow):
         self.balloon = Balloon(self)
         self.board_view = BoardView(board)
         self.board_view.set_card_font_size(self._settings.card_font_size)
+        self.board_view.set_stale_limits(self._settings.stale_limits)
         self.board_view.cardClicked.connect(self._card_clicked)
         self.board_view.cardMenuRequested.connect(self._show_card_menu)
         self.board_view.taskAdded.connect(self._task_created)
@@ -263,6 +264,7 @@ class MainWindow(QMainWindow):
     def open_settings(self) -> None:
         dialog = SettingsDialog(self._settings, parent=self, has_password=self._password.exists())
         dialog.cardFontSizeChanged.connect(self._set_card_font_size)
+        dialog.staleSettingsChanged.connect(self._set_stale_settings)
         dialog.changePasswordClicked.connect(self.change_password)
         dialog.exec()
 
@@ -292,6 +294,15 @@ class MainWindow(QMainWindow):
         if self._settings_store is not None:
             self._settings_store.save(self._settings)
         self.board_view.set_card_font_size(size)
+
+    def _set_stale_settings(self, mark: bool, inbox_days: int, in_process_days: int) -> None:
+        """Redraw the Board at once and remember the Governance settings."""
+        self._settings = replace(
+            self._settings, mark_stale=mark, stale_inbox_days=inbox_days, stale_in_process_days=in_process_days
+        )
+        if self._settings_store is not None:
+            self._settings_store.save(self._settings)
+        self.board_view.set_stale_limits(self._settings.stale_limits)
 
     # Tasks and Notebook
 

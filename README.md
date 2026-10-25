@@ -40,6 +40,7 @@ The Board doesn't just list Tasks. It orders them.
   - Later deadlines settle among the Someday work, one step further down for each month away.
   - Today's work is never crowded out by commitments that are weeks away.
 - **Urgency at a glance.** Overdue Tasks and Tasks whose start date has passed are outlined in red. Tasks due today or tomorrow carry an amber marker.
+- **Stale Tasks.** A Someday Task left waiting in Inbox or In Process too long fades behind a dotted outline, and each Stage's title counts them. The limit is set per Stage in Settings → Governance (10 days for Inbox and 4 for In Process to start), plus one day per Priority rank, so the top of the list is expected to move first.
 - **Stages that mean something.** Inbox, In Process and Done. A Task with unfinished Subtasks can't be completed, and work in progress can't be deleted by accident.
 
 ### Everything a Task needs, inside the Task
@@ -206,13 +207,13 @@ src/unlimilist/
   note_search.py   the Notebook search: Exact and Partial matches, and its index file
   secure.py        encrypting a Secured Note's Body (AES-GCM, scrypt)
   notebook_password.py  the Notebook password, checked against the Keychain
-  settings.py      settings.json: the user's settings, such as the card font size
+  settings.py      settings.json: the user's settings, such as the card font size and when Tasks turn Stale
   app.py           startup, styles, the data folder
   data_folders.py  which folders a run reads: tasks and notes (normal build), or test and test-notes
   ui/              the Qt widgets: main window, Columns, cards, Task dialog, Notebook, Show Note, Settings,
                    sidebar, password dialogs, loading card
 tests/             test_board.py (domain), test_notebook.py, test_note_import.py, test_secured_notes.py,
-                   test_note_search.py, test_ui.py, test_notebook_ui.py, test_note_search_ui.py, test_settings.py, test_highlight.py, test_fold_done.py,
+                   test_note_search.py, test_ui.py, test_notebook_ui.py, test_note_search_ui.py, test_settings.py, test_stale.py, test_highlight.py, test_fold_done.py,
                    test_loading.py, test_delete_and_duplicate.py, test_data_folders.py
 scripts/           build_app.sh, build_dmg.sh, setup_intel_env.sh, make_test_tasks.py, make_test_notes.py,
                    readme_screenshots.py
@@ -325,4 +326,4 @@ Other Tasks and Notes you create while testing stay in the test folders until yo
   2. Build both DMGs: `./scripts/build_dmg.sh` and `./scripts/build_dmg.sh --intel`.
   3. Check that every binary in the Intel app is x86_64.
   4. Tag the release and upload both DMGs.
-- **Icons:** the app icon is `assets/Unlimilist.icns` for the bundle and `src/unlimilist/assets/app_icon.png` for the window.
+- **Icons:** the app icon is `assets/Unlimilist.icns` for the bundle and `src/unlimilist/assets/app_icon.png` for the window. Both are made from `assets/unlimilist_icon.png`, the 1024 px original on the macOS icon grid (an 824 px tile with transparent corners): resize it with `sips` into an `.iconset` and run `iconutil -c icns`.

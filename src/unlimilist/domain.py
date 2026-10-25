@@ -36,6 +36,25 @@ class Urgency(Enum):
     OVERDUE = "overdue"
 
 
+@dataclass(frozen=True)
+class StaleLimits:
+    """How many days a Someday Task may wait in each Stage before it is Stale, before one more per Priority rank."""
+
+    inbox: int = 10
+    in_process: int = 4
+
+    def days(self, stage: Stage) -> int | None:
+        return {Stage.INBOX: self.inbox, Stage.IN_PROCESS: self.in_process}.get(stage)
+
+
+@dataclass(frozen=True)
+class Stale:
+    """Why a Task is Stale: whole days it has waited, and how many its Stage and Priority allow."""
+
+    waited: int
+    allowed: int
+
+
 class InvalidTask(ValueError):
     """A Task's fields break a rule, e.g. a missing Title."""
 
@@ -97,6 +116,7 @@ class Task:
     priority: int | None = None
     completed_at: datetime | None = None
     activity: Activity = Activity.GENERAL_TASK
+    waiting_since: datetime | None = None  # when it last entered its Stage or was given a new Priority
 
     @property
     def kind(self) -> LaneKind:

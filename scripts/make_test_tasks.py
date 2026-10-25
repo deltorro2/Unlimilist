@@ -6,7 +6,7 @@
 
 The default folder is ~/Library/Application Support/Unlimilist/test (the test build's), never your real tasks
 folder. Every test Task is a file named manual-test-NN.md, so other Tasks you made while testing stay. Dates are
-relative to today, so Overdue, Start passed and Due soon always show. Quit the app before running this:
+relative to today, so Overdue, Start passed, Due soon and Stale always show. Quit the app before running this:
 the app reads the folder when it starts.
 """
 
@@ -60,7 +60,12 @@ def test_tasks(today: date) -> list[dict]:
 
     return [
         # Inbox, Someday: more than five, so the Column interleaves them with Time-limited Tasks.
-        dict(title="Plan the vegetable garden", activity=GENERAL, details="Raised beds along the fence #home #garden"),
+        dict(
+            title="Plan the vegetable garden",
+            activity=GENERAL,
+            waited=14,
+            details="Stale: 14 days in Inbox, 10 + Priority 2 allowed. Faded, dotted outline. #home #garden",
+        ),
         dict(
             title="Refactor the sync module",
             activity=CODE,
@@ -68,9 +73,19 @@ def test_tasks(today: date) -> list[dict]:
             "Unfinished Subtasks: dragging this to Done is refused with a balloon. #work #code",
             usable_data="Branch: `refactor/sync`\n\nhttps://github.com/deltorro2/Unlimilist",
         ),
-        dict(title="Call grandma", activity=CALL, details="Ask about the family recipes #family"),
+        dict(
+            title="Call grandma",
+            activity=CALL,
+            waited=14,
+            details="Not Stale, just: 14 days in Inbox, 10 + Priority 4 allowed. Stale tomorrow. #family",
+        ),
         dict(title=LONG_TITLE, activity=MEETING, details="A long title wraps under the Tag chip. #work #client-x #reports"),
-        dict(title="Ask Dana about the invoice", activity=ASK, details="An Ask Task: pink badge. No Tags, so no chip."),
+        dict(
+            title="Ask Dana about the invoice",
+            activity=ASK,
+            waited=20,
+            details="An Ask Task: pink badge. No Tags, so no chip. Stale: 20 days in Inbox.",
+        ),
         dict(
             title="Long Tag cut in the chip",
             activity=GENERAL,
@@ -111,7 +126,13 @@ def test_tasks(today: date) -> list[dict]:
         dict(title=LONG_TITLE, activity=CODE, deadline=day(20), details="A long Time-limited title: 3 lines, then dates. #work"),
         # In Process: a Task here can't be deleted.
         dict(stage=IN_PROCESS, title="Write the onboarding guide", activity=GENERAL, details="- [x] Install steps\n- [ ] First Task\n\n#work #docs"),
-        dict(stage=IN_PROCESS, title="Fix the flaky login test", activity=CODE, details="Fails about once in twenty runs #work #code"),
+        dict(
+            stage=IN_PROCESS,
+            title="Fix the flaky login test",
+            activity=CODE,
+            waited=8,
+            details="Stale: 8 days In Process, 4 + Priority 2 allowed. #work #code",
+        ),
         dict(stage=IN_PROCESS, title="Client demo", activity=MEETING, deadline=day(0), details="Show the new Board #client-x"),
         dict(stage=IN_PROCESS, title="Call the plumber back", activity=CALL, deadline=day(-1), details="#home"),
         dict(
@@ -151,15 +172,19 @@ def main() -> int:
 
     store = MarkdownTaskStore(folder)
     today = date.today()
-    start = datetime.now().replace(microsecond=0) - timedelta(days=7)
+    now = datetime.now().replace(microsecond=0)
+    start = now - timedelta(days=30)  # made before any of them started waiting
     for number, fields in enumerate(test_tasks(today), start=1):
         stage = fields.pop("stage", INBOX)
         completed = fields.pop("completed", None)
+        waited = fields.pop("waited", None)  # days since it entered its Stage; the rest are well within their days
+        waiting_since = None if stage == DONE else now - timedelta(days=1 if waited is None else waited)
         task = Task(
             id=f"{PREFIX}{number:02d}",
             stage=stage,
             created_at=start + timedelta(minutes=number),
-            completed_at=datetime.now().replace(microsecond=0) - timedelta(hours=completed) if completed else None,
+            waiting_since=waiting_since,
+            completed_at=now - timedelta(hours=completed) if completed else None,
             **fields,
         )
         task.validate()
@@ -167,7 +192,8 @@ def main() -> int:
     # A hand-edited file with an unknown Activity: the app shows it as a General Task, with a warning.
     (folder / f"{PREFIX}99.md").write_text(
         f"---\nid: {PREFIX}99\nstage: inbox\nactivity: juggling\ncreated_at: {start:%Y-%m-%d %H:%M:%S}\n---\n"
-        "# Unknown Activity in the file\n\n## Details\n\nShown as a General Task, with a warning in the status bar.\n",
+        "# Unknown Activity in the file\n\n## Details\n\nShown as a General Task, with a warning in the status bar. "
+        "The file has no waiting_since, so it has waited since it was made, 30 days ago: Stale.\n",
         encoding="utf-8",
     )
     print(f"Wrote {number + 1} test Tasks to {folder}")

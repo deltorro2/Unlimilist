@@ -4,7 +4,7 @@ from PySide6.QtCore import QPoint, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from unlimilist.board import Board
-from unlimilist.domain import Stage
+from unlimilist.domain import Stage, StaleLimits
 from unlimilist.ui.column import FOLDED_WIDTH, ColumnWidget
 
 _STAGE_TITLES = {Stage.INBOX: "Inbox", Stage.IN_PROCESS: "In Process", Stage.DONE: "Done"}
@@ -24,6 +24,7 @@ class BoardView(QWidget):
         self._board = board
         self._columns: dict[Stage, ColumnWidget] = {}
         self._tag_filter: frozenset[str] = frozenset()
+        self._stale_limits: StaleLimits | None = StaleLimits()
 
         self.quick_add = QLineEdit()
         self.quick_add.setObjectName("quickAdd")
@@ -93,11 +94,19 @@ class BoardView(QWidget):
         self._tag_filter = tag_filter
         self.refresh()
 
+    def set_stale_limits(self, limits: StaleLimits | None) -> None:
+        """Mark Tasks that have waited longer than these limits as Stale; None marks none."""
+        self._stale_limits = limits
+        self.refresh()
+
     def refresh(self) -> None:
         for stage, column in self._columns.items():
             tasks = self._board.column(stage)
             shown = {t.id for t in tasks if t.matches_tag_filter(self._tag_filter)} if self._tag_filter else None
-            column.set_tasks(tasks, [self._board.urgency(t.id) for t in tasks], shown)
+            stale = {}
+            if self._stale_limits is not None:
+                stale = {t.id: s for t in tasks if (s := self._board.stale(t.id, self._stale_limits))}
+            column.set_tasks(tasks, [self._board.urgency(t.id) for t in tasks], shown, stale)
 
     def _quick_add(self) -> None:
         title = self.quick_add.text().strip()

@@ -47,6 +47,7 @@ QListWidget#tagPopup::item:selected { background: #D7E3FC; color: #1A3D8F; }
 
 QFrame#stage { background: #E8EAF0; border-radius: 10px; }
 QLabel#stageHeader { font-size: 16px; font-weight: 700; color: #22252B; padding: 2px 4px; }
+QLabel#staleBadge { background: #FFF1D6; color: #8A5A00; border: 1px solid #F0C878; border-radius: 9px; padding: 1px 8px; font-size: 12px; font-weight: 600; }
 QFrame#lane { background: #F6F7FA; border: 1px solid #DCDFE6; border-radius: 8px; }
 QFrame#lane[dropSide="all"] { background: #EAF1FF; border: 2px dashed #2F6FED; }
 QFrame#lane[dropSide="left"] { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E3EDFF, stop:0.499 #E3EDFF, stop:0.5 #F6F7FA, stop:1 #F6F7FA); border: 2px dashed #2F6FED; }

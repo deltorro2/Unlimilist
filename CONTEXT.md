@@ -100,6 +100,14 @@ A Task still in Inbox whose Due date has passed: it should have been started alr
 **Due soon**:
 A Task that is not Done and whose Deadline is today or tomorrow, and that is neither Overdue nor Start passed.
 
+**Waiting since**:
+When a Task last entered its Stage, or was last given a new Priority by the user, whichever is later. A Task whose rank shifts only because another Task moved, arrived or left keeps its Waiting since. Editing a Task, or a Conversion, does not change it. A Duplicate is a new Task, so its Waiting since is when it was made.
+_Avoid_: LSCT, last stage change time, age
+
+**Stale**:
+A Someday Task in Inbox or In Process that has been waiting longer than its Stage allows: the Stage's number of days plus the Task's Priority, so Tasks lower in the Lane get longer. Days are whole calendar days after the day of its Waiting since, so with 11 days allowed a Task that entered on Oct 1 turns Stale on Oct 13. Each Stage's number of days is set in Settings, on the Governance tab (10 for Inbox and 4 for In Process to start), where Stale marking can also be turned off. A Stale card is drawn faded with a dotted outline, and each Stage's title shows how many shown Tasks are Stale. Stale is about neglect, not dates: it is not Overdue, and a Time-limited Task is never Stale.
+_Avoid_: Overdue, old, expired
+
 **Completed on**:
 The date a Task entered Done. Done is ordered by it, most recent first.
 

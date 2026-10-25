@@ -11,6 +11,7 @@ File layout:
     deadline: null
     created_at: 2026-10-12 09:00:00
     completed_at: null
+    waiting_since: 2026-10-12 09:00:00
     ---
     # Title
 
@@ -75,6 +76,13 @@ class MarkdownTaskStore:
         return self.folder / f"{task_id}.md"
 
 
+class _Dumper(yaml.SafeDumper):
+    """Writes every value out in full: a new Task's waiting_since is its created_at, which would be an alias."""
+
+    def ignore_aliases(self, data) -> bool:
+        return True
+
+
 def _render(task: Task) -> str:
     meta = {
         "id": task.id,
@@ -85,8 +93,9 @@ def _render(task: Task) -> str:
         "deadline": task.deadline,
         "created_at": task.created_at,
         "completed_at": task.completed_at,
+        "waiting_since": task.waiting_since,
     }
-    front_matter = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True)
+    front_matter = yaml.dump(meta, Dumper=_Dumper, sort_keys=False, allow_unicode=True)
     return (
         f"---\n{front_matter}---\n"
         f"# {task.title}\n\n"
@@ -128,6 +137,7 @@ def _parse(text: str, fallback_id: str, file_name: str, warnings: list[str]) -> 
         priority=meta.get("priority"),
         completed_at=_as_datetime(meta.get("completed_at")),
         activity=_as_activity(meta.get("activity"), file_name, warnings),
+        waiting_since=_as_datetime(meta.get("waiting_since")),  # files from before it existed have none
     )
     if task.stage == Stage.DONE and task.completed_at is None:
         task = Task(**{**task.__dict__, "completed_at": task.created_at})

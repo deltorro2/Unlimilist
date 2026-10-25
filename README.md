@@ -326,4 +326,4 @@ Other Tasks and Notes you create while testing stay in the test folders until yo
   2. Build both DMGs: `./scripts/build_dmg.sh` and `./scripts/build_dmg.sh --intel`.
   3. Check that every binary in the Intel app is x86_64.
   4. Tag the release and upload both DMGs.
-- **Icons:** the app icon is `assets/Unlimilist.icns` for the bundle and `src/unlimilist/assets/app_icon.png` for the window.
+- **Icons:** the app icon is `assets/Unlimilist.icns` for the bundle and `src/unlimilist/assets/app_icon.png` for the window. Both are made from `assets/unlimilist_icon.png`, the 1024 px original on the macOS icon grid (an 824 px tile with transparent corners): resize it with `sips` into an `.iconset` and run `iconutil -c icns`.

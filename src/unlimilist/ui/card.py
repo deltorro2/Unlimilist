@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from unlimilist.domain import LaneKind, Stage, Task, Urgency
+from unlimilist.domain import LaneKind, Stage, Stale, Task, Urgency
 from unlimilist.ui.date_field import format_date
 from unlimilist.ui.icons import ACTIVITY_LABELS, activity_pixmap
 from unlimilist.ui.styling import LATE, LATE_BORDER, TAG_BACKGROUND, TAG_INK, URGENCY_COLOURS, text_colour
@@ -44,6 +44,10 @@ _BADGE_GAP = 6
 _LATE_BORDER_WIDTH = 2
 _MARK_WASH = QColor(255, 255, 255, 140)
 _MARK_CHECK_SIZE = 16
+# A Stale card: a dotted outline, and a white wash that leaves it at about 55% strength.
+_STALE_WASH = QColor(255, 255, 255, 115)
+_STALE_OUTLINE = QColor("#6B7080")
+_STAGE_NAMES = {Stage.INBOX: "Inbox", Stage.IN_PROCESS: "In Process"}
 # A card that has just been created or moved turns yellow, holds, then fades back quickly: a slow blend from
 # yellow to a blue or green card passes through a muddy olive.
 _HIGHLIGHT = QColor("#FFE066")
@@ -170,14 +174,36 @@ class _MarkOverlay(QWidget):
         painter.end()
 
 
+class _StaleOverlay(QWidget):
+    """Laid over a Stale card: a dotted outline, and a wash that fades the card while it is out of focus."""
+
+    def __init__(self, parent: QWidget):
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.faded = True
+        self.hide()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        if self.faded:
+            painter.fillRect(self.rect(), _STALE_WASH)
+        painter.setPen(QPen(_STALE_OUTLINE, 2, Qt.PenStyle.DotLine))
+        painter.drawRect(QRectF(self.rect()).adjusted(1, 1, -1, -1))
+        painter.end()
+
+
 class CardWidget(QFrame):
     clicked = Signal(str)
     menuRequested = Signal(str, QPoint)  # task id, where on screen
 
-    def __init__(self, task: Task, urgency: Urgency, fill: QColor, parent=None, font_size: int = 2):
+    def __init__(
+        self, task: Task, urgency: Urgency, fill: QColor, parent=None, font_size: int = 2, stale: Stale | None = None
+    ):
         super().__init__(parent)
         self.task = task
         self._urgency = urgency
+        self._stale = stale
+        self._hovered = False
         self._fill = fill
         self._press_pos: QPoint | None = None
         self._done = task.stage == Stage.DONE
@@ -275,7 +301,13 @@ class CardWidget(QFrame):
             layout.addSpacing(_BADGE_SLOT + _BADGE_GAP)  # a spacer gets no layout spacing of its own
         layout.addLayout(content, 1)
 
+        self._stale_overlay = _StaleOverlay(self)
         self._mark_overlay = _MarkOverlay(self)
+        if stale is not None:
+            self.setToolTip(
+                f"Stale: waiting in {_STAGE_NAMES[task.stage]} for {stale.waited} days (allowed {stale.allowed})"
+            )
+        self._show_stale()
 
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(12)
@@ -289,6 +321,19 @@ class CardWidget(QFrame):
         self._marked = marked
         self._mark_overlay.setVisible(marked)
         self._mark_overlay.raise_()
+        self._show_stale()
+
+    def is_stale(self) -> bool:
+        return self._stale is not None
+
+    def is_faded(self) -> bool:
+        """A Stale card is faded, except under the pointer or while selected for deleting (which has its own)."""
+        return self.is_stale() and not self._hovered and not self._marked
+
+    def _show_stale(self) -> None:
+        self._stale_overlay.setVisible(self.is_stale())
+        self._stale_overlay.faded = self.is_faded()
+        self._stale_overlay.update()
 
     def mark_anchor(self) -> QPoint:
         """Where the red check goes: on the first line, over the Activity badge or, on a Done card, the circle."""
@@ -409,13 +454,25 @@ class CardWidget(QFrame):
             margins.top() + (self._title_line - 1) // 2 - (_BADGE_SIZE - 1) // 2,
         )
         if hasattr(self, "_mark_overlay"):
+            self._stale_overlay.raise_()  # the wash fades the chip too
             self._mark_overlay.raise_()  # the check stays above the chip
         self.updateGeometry()  # the line count, and so the height, may have changed
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._fit_text()
+        self._stale_overlay.setGeometry(self.rect())
         self._mark_overlay.setGeometry(self.rect())
+
+    def enterEvent(self, event):
+        self._hovered = True
+        self._show_stale()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self._show_stale()
+        super().leaveEvent(event)
 
     def contextMenuEvent(self, event):
         self.menuRequested.emit(self.task.id, event.globalPos())

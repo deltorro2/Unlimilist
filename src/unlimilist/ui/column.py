@@ -4,7 +4,7 @@ from PySide6.QtCore import QEasingCurve, QPoint, Qt, QTimer, QVariantAnimation, 
 from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
-from unlimilist.domain import LaneKind, Stage, Task, Urgency
+from unlimilist.domain import LaneKind, Stage, Stale, Task, Urgency
 from unlimilist.ui.card import CardWidget, decode_drag
 from unlimilist.ui.styling import card_fill
 from unlimilist.ui.toggle_switch import ToggleSwitch
@@ -91,6 +91,17 @@ class ColumnWidget(QFrame):
 
         header = self.header = QLabel(title)
         header.setObjectName("stageHeader")
+        # How many of the shown Tasks are Stale; Done never has any.
+        self.stale_badge = QLabel()
+        self.stale_badge.setObjectName("staleBadge")
+        self.stale_badge.setToolTip("Someday Tasks that have waited here longer than allowed")
+        self.stale_badge.hide()
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.setSpacing(6)
+        title_row.addWidget(header)
+        title_row.addWidget(self.stale_badge, 0, Qt.AlignmentFlag.AlignVCenter)
+        title_row.addStretch(1)
 
         self._someday_count = QLabel()
         self._someday_count.setObjectName("laneHeader")
@@ -148,7 +159,7 @@ class ColumnWidget(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 10, 8, 8)
         layout.setSpacing(8)
-        layout.addWidget(header)
+        layout.addLayout(title_row)
         if top_widget is not None:
             layout.addWidget(top_widget)
         self._folded = False
@@ -277,11 +288,19 @@ class ColumnWidget(QFrame):
         """The Lane header texts; Done has only one."""
         return self._someday_count.text(), None if self.stage == Stage.DONE else self._time_limited_count.text()
 
-    def set_tasks(self, tasks: list[Task], urgencies: list[Urgency], shown: set[str] | None = None) -> None:
-        """Show `tasks` in order, or only those whose id is in `shown` while the Tag filter is on.
+    def set_tasks(
+        self,
+        tasks: list[Task],
+        urgencies: list[Urgency],
+        shown: set[str] | None = None,
+        stale: dict[str, Stale] | None = None,
+    ) -> None:
+        """Show `tasks` in order, or only those whose id is in `shown` while the Tag filter is on. The Tasks in
+        `stale` are drawn Stale, and the title counts those shown.
 
         A card keeps the shade of its place among all of `tasks`, so filtering never recolours it.
         """
+        stale = stale or {}
         self._clear_placeholders()
         for row in self._rows:
             row.setParent(None)
@@ -294,7 +313,11 @@ class ColumnWidget(QFrame):
                 continue
             kind = None if self.stage == Stage.DONE else task.kind
             card = CardWidget(
-                task, urgency, card_fill(self.stage, kind, index, len(tasks)), font_size=self._font_size
+                task,
+                urgency,
+                card_fill(self.stage, kind, index, len(tasks)),
+                font_size=self._font_size,
+                stale=stale.get(task.id),
             )
             card.clicked.connect(self.cardClicked)
             card.menuRequested.connect(self.cardMenuRequested)
@@ -303,6 +326,9 @@ class ColumnWidget(QFrame):
             self._cards.append(card)
             self._rows.append(row)
         visible = [c.task for c in self._cards]
+        stale_shown = sum(1 for t in visible if t.id in stale)
+        self.stale_badge.setText(f"{stale_shown} stale")
+        self.stale_badge.setVisible(stale_shown > 0)
         if self.stage == Stage.DONE:
             self._someday_count.setText(f"COMPLETED  ·  {_count(visible, tasks, self._filtered)}")
         else:

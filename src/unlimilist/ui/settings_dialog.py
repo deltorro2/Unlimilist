@@ -1,4 +1,5 @@
-"""The Settings window: one tab per area. Board view has the Card font size; Notebook has the Notebook password."""
+"""The Settings window: one tab per area. Board view has the Card font size; Notebook has the Notebook password;
+Governance has when Tasks turn Stale."""
 
 from datetime import date, datetime, timedelta
 
@@ -10,15 +11,17 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QSlider,
+    QSpinBox,
     QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from unlimilist.domain import Activity, Stage, Task, Urgency
-from unlimilist.settings import CARD_FONT_SIZES, Settings
+from unlimilist.settings import CARD_FONT_SIZES, STALE_DAYS, Settings
 from unlimilist.ui.card import CardWidget
 from unlimilist.ui.styling import card_fill
+from unlimilist.ui.toggle_switch import ToggleSwitch
 
 _PREVIEW_WIDTH = 330  # about a card's width on the Board
 
@@ -53,6 +56,7 @@ class SettingsDialog(QDialog):
 
     cardFontSizeChanged = Signal(int)
     changePasswordClicked = Signal()
+    staleSettingsChanged = Signal(bool, int, int)  # mark Stale Tasks, Inbox days, In Process days
 
     def __init__(self, settings: Settings, parent=None, has_password: bool = False):
         super().__init__(parent)
@@ -62,6 +66,7 @@ class SettingsDialog(QDialog):
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_board_view(settings), "Board view")
         self.tabs.addTab(self._build_notebook(has_password), "Notebook")
+        self.tabs.addTab(self._build_governance(settings), "Governance")
 
         self.close_button = QPushButton("Close")
         self.close_button.setDefault(True)
@@ -145,6 +150,69 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.change_password_button, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addStretch(1)
         return page
+
+    def _build_governance(self, settings: Settings) -> QWidget:
+        heading = QLabel("Stale Tasks")
+        heading.setObjectName("settingsHeading")
+        self.stale_switch = ToggleSwitch(checked=settings.mark_stale)
+        self.stale_switch.setObjectName("staleSwitch")
+        switch_row = QHBoxLayout()
+        switch_row.setSpacing(10)
+        switch_row.addWidget(self.stale_switch)
+        switch_row.addWidget(QLabel("Mark Stale Tasks"))
+        switch_row.addStretch(1)
+
+        hint = QLabel(
+            "A Someday Task turns Stale when it waits in its Stage longer than the days below, plus one day for "
+            "each Priority rank, so Tasks lower in the list get longer. Its wait starts when it enters the Stage or "
+            "you give it a new Priority. Stale cards are faded with a dotted outline."
+        )
+        hint.setObjectName("settingsHint")
+        hint.setWordWrap(True)
+
+        self.inbox_days = self._days_field(settings.stale_inbox_days)
+        self.in_process_days = self._days_field(settings.stale_in_process_days)
+        days = QHBoxLayout()
+        days.setSpacing(10)
+        for name, field in (("Inbox", self.inbox_days), ("In Process", self.in_process_days)):
+            days.addWidget(QLabel(name))
+            days.addWidget(field)
+            days.addSpacing(16)
+        days.addStretch(1)
+
+        self.stale_switch.toggled.connect(self._stale_settings_chosen)
+        self.inbox_days.valueChanged.connect(self._stale_settings_chosen)
+        self.in_process_days.valueChanged.connect(self._stale_settings_chosen)
+        self._show_days_enabled()
+
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+        layout.addWidget(heading)
+        layout.addLayout(switch_row)
+        layout.addWidget(hint)
+        layout.addLayout(days)
+        layout.addStretch(1)
+        return page
+
+    @staticmethod
+    def _days_field(value: int) -> QSpinBox:
+        field = QSpinBox()
+        field.setRange(STALE_DAYS[0], STALE_DAYS[-1])
+        field.setSuffix(" days")
+        field.setValue(value)
+        return field
+
+    def _stale_settings_chosen(self, *_) -> None:
+        self._show_days_enabled()
+        self.staleSettingsChanged.emit(
+            self.stale_switch.isChecked(), self.inbox_days.value(), self.in_process_days.value()
+        )
+
+    def _show_days_enabled(self) -> None:
+        for field in (self.inbox_days, self.in_process_days):
+            field.setEnabled(self.stale_switch.isChecked())
 
     def preview_cards(self) -> list[CardWidget]:
         return list(self._preview_cards)

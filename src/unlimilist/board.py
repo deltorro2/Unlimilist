@@ -12,6 +12,8 @@ from unlimilist.domain import (
     DuplicateRefused,
     LaneKind,
     Stage,
+    Stale,
+    StaleLimits,
     Task,
     UnfinishedSubtasks,
     Urgency,
@@ -57,6 +59,7 @@ class Board:
         self._tag_index: dict[str, set[str]] = {}
         for task in self._tasks.values():
             self._index_tags(task)
+        self._start_waiting()
         for stage in (Stage.INBOX, Stage.IN_PROCESS):
             self._renumber(stage, LaneKind.SOMEDAY)
 
@@ -82,6 +85,7 @@ class Board:
             due_date=due_date,
             deadline=deadline,
             activity=activity,
+            waiting_since=created_at,
         )
         task.validate()
         self._put(task)
@@ -123,6 +127,8 @@ class Board:
         if new.stage != Stage.DONE:
             if new.kind == LaneKind.SOMEDAY and (old.kind != new.kind or priority is not None):
                 self._rank(task_id, priority)
+                if old.kind == LaneKind.SOMEDAY:
+                    self._restart_if_reranked(old)
             self._renumber(old.stage, old.kind)
         return self._tasks[task_id]
 
@@ -136,13 +142,16 @@ class Board:
         if stage == Stage.DONE and task.stage != Stage.DONE and task.unfinished_subtasks:
             raise UnfinishedSubtasks(task.unfinished_subtasks)
         source = (task.stage, task.kind)
+        waiting_since = task.waiting_since if stage == task.stage else self._clock()
         if stage == Stage.DONE:
             completed_at = task.completed_at if task.stage == Stage.DONE else self._clock()
-            self._put(replace(task, stage=stage, priority=None, completed_at=completed_at))
+            self._put(replace(task, stage=stage, priority=None, completed_at=completed_at, waiting_since=waiting_since))
         else:
-            self._put(replace(task, stage=stage, completed_at=None))
+            self._put(replace(task, stage=stage, completed_at=None, waiting_since=waiting_since))
             if task.kind == LaneKind.SOMEDAY:
                 self._rank(task_id, priority)
+                if stage == task.stage:
+                    self._restart_if_reranked(task)
         self._renumber(*source)
         return self._tasks[task_id]
 
@@ -200,6 +209,17 @@ class Board:
             return Urgency.DUE_SOON
         return Urgency.NONE
 
+    def stale(self, task_id: str, limits: StaleLimits) -> Stale | None:
+        """Whether a Someday Task in Inbox or In Process has waited longer than its Stage allows, plus a day per
+        Priority rank. Days are whole calendar days after the day of its Waiting since."""
+        task = self._tasks[task_id]
+        days = limits.days(task.stage)
+        if days is None or task.kind != LaneKind.SOMEDAY or task.waiting_since is None:
+            return None
+        waited = (self._clock().date() - task.waiting_since.date()).days
+        allowed = days + (task.priority or 0)
+        return Stale(waited, allowed) if waited > allowed else None
+
     def tags(self) -> list[tuple[str, int]]:
         """Every Tag on the Board, A to Z, with how many Tasks have it. A Tag is spelled as first used."""
         listed = []
@@ -251,6 +271,20 @@ class Board:
                 placed.append(task)
         placed += [t for t in rest if 1 + _whole_months(today, t.earliest_date) > len(remaining)]
         return first + someday[:_TOP_SOMEDAY] + three + placed
+
+    def _start_waiting(self) -> None:
+        """Tasks kept before Waiting since existed: every Task is made in Inbox, so an Inbox Task has waited since
+        it was made; when an In Process Task got there is unknown, so it starts now. Done needs none."""
+        for task in list(self._tasks.values()):
+            if task.waiting_since is None and task.stage != Stage.DONE:
+                start = task.created_at if task.stage == Stage.INBOX else self._clock()
+                self._put(replace(task, waiting_since=start))
+
+    def _restart_if_reranked(self, before: Task) -> None:
+        """Giving a Task a new Priority restarts its clock; Tasks shifted around it keep theirs."""
+        task = self._tasks[before.id]
+        if task.priority != before.priority:
+            self._put(replace(task, waiting_since=self._clock()))
 
     def _rank(self, task_id: str, priority: int | None) -> None:
         """Put a Someday Task at `priority` in its Lane (bottom if None) and renumber the Lane 1..N."""

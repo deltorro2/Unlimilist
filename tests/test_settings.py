@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from unlimilist.domain import StaleLimits
 from unlimilist.settings import DEFAULT_CARD_FONT_SIZE, Settings, SettingsStore
 
 
@@ -17,7 +18,7 @@ def test_a_saved_card_font_size_loads_back(tmp_path):
 
     SettingsStore(path).save(Settings(card_font_size=4))
 
-    assert json.loads(path.read_text()) == {"card_font_size": 4}
+    assert json.loads(path.read_text())["card_font_size"] == 4
     assert SettingsStore(path).load().card_font_size == 4
 
 
@@ -27,6 +28,39 @@ def test_a_broken_settings_file_means_the_defaults(tmp_path, content):
     path.write_text(content)
 
     assert SettingsStore(path).load() == Settings()
+
+
+def test_stale_tasks_are_marked_after_10_days_in_inbox_and_4_in_process_to_start(tmp_path):
+    settings = SettingsStore(tmp_path / "settings.json").load()
+
+    assert settings.mark_stale is True
+    assert settings.stale_limits == StaleLimits(inbox=10, in_process=4)
+
+
+def test_saved_stale_settings_load_back(tmp_path):
+    path = tmp_path / "settings.json"
+
+    SettingsStore(path).save(Settings(stale_inbox_days=30, stale_in_process_days=1))
+
+    assert SettingsStore(path).load().stale_limits == StaleLimits(inbox=30, in_process=1)
+
+
+def test_with_stale_marking_off_there_are_no_limits(tmp_path):
+    path = tmp_path / "settings.json"
+
+    SettingsStore(path).save(Settings(mark_stale=False))
+
+    assert SettingsStore(path).load().stale_limits is None
+
+
+@pytest.mark.parametrize("days", [0, 366, "ten", True, None])
+def test_an_odd_number_of_stale_days_means_the_default_for_that_stage_only(tmp_path, days):
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"card_font_size": 4, "stale_inbox_days": days, "stale_in_process_days": 7}))
+
+    settings = SettingsStore(path).load()
+
+    assert (settings.card_font_size, settings.stale_inbox_days, settings.stale_in_process_days) == (4, 10, 7)
 
 
 def test_saving_creates_the_folder(tmp_path):
@@ -161,7 +195,7 @@ def test_the_settings_window_has_board_view_and_notebook_tabs_and_a_close_button
     dialog = SettingsDialog(Settings())
     qtbot.addWidget(dialog)
 
-    assert [dialog.tabs.tabText(i) for i in range(dialog.tabs.count())] == ["Board view", "Notebook"]
+    assert [dialog.tabs.tabText(i) for i in range(dialog.tabs.count())] == ["Board view", "Notebook", "Governance"]
     assert dialog.font_slider.value() == 2
     assert (dialog.font_slider.minimum(), dialog.font_slider.maximum()) == (1, 5)
     dialog.close_button.click()

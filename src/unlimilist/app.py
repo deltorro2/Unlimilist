@@ -15,6 +15,8 @@ from unlimilist.notebook_password import KeychainVault, NotebookPassword
 from unlimilist.settings import SettingsStore
 from unlimilist.ui.icons import app_icon
 from unlimilist.ui.main_window import MainWindow
+from unlimilist.ui.setup import open_vault
+from unlimilist.vault import notes_folder, tasks_folder
 
 STYLESHEET = """
 QMainWindow, QWidget#central { background: #F4F5F8; }
@@ -67,6 +69,9 @@ QFrame#placeholderTile { background: #E9ECF2; border: none; border-radius: 6px; 
 QFrame#loadingCard { background: #FFFFFF; border: 1px solid #E4E7EE; border-radius: 14px; }
 QDialog#settingsDialog { background: #F4F5F8; }
 QLabel#settingsHeading { font-size: 13px; font-weight: 700; color: #22252B; }
+QLabel#vaultPath { font-size: 13px; color: #1B1B1F; background: #FFFFFF; border: 1px solid #E2E4EA; border-radius: 6px; padding: 6px 8px; }
+QDialog#setupDialog { background: #F4F5F8; }
+QLabel#setupTitle { font-size: 24px; font-weight: 700; color: #22252B; }
 QLabel#settingsHint { font-size: 12px; color: #6B7080; }
 QFrame#settingsPreview { background: #FFFFFF; border: 1px solid #E2E4EA; border-radius: 8px; }
 QStackedWidget { background: #F4F5F8; }
@@ -146,14 +151,6 @@ def test_build() -> bool:
     return is_test_build(getattr(sys, "frozen", False), Path(unlimilist.__file__).resolve().parent)
 
 
-def tasks_folder() -> Path:
-    return data_folders.tasks_folder(app_data_folder(), test_build())
-
-
-def notes_folder() -> Path:
-    return data_folders.notes_folder(app_data_folder(), test_build())
-
-
 def settings_file() -> Path:
     return app_data_folder() / "settings.json"
 
@@ -170,16 +167,24 @@ def main() -> int:
     app.setPalette(_light_palette())
     app.setStyleSheet(STYLESHEET)
 
+    # Both builds share the settings and the Notebook password. The normal build reads the Vault, found (or chosen
+    # in Setup) before the window opens; the test build reads its fixed test folders and has no Vault.
+    store = SettingsStore(settings_file())
+    password = NotebookPassword(KeychainVault())
+    if test_build():
+        vault = None
+        tasks = data_folders.folder_for_test_tasks(app_data_folder())
+        notes = data_folders.folder_for_test_notes(app_data_folder())
+    else:
+        vault = open_vault(store, password)
+        if vault is None:  # Setup was closed, or the user quit at a missing Vault
+            return 0
+        tasks, notes = tasks_folder(vault), notes_folder(vault)
+
     # The window opens at once; the Tasks and Notes load in the background behind the loading card.
-    # Both builds share the settings and the Notebook password; only the Tasks and Notes folders differ.
-    window = MainWindow(
-        Board(),
-        settings_store=SettingsStore(settings_file()),
-        test_build=test_build(),
-        password=NotebookPassword(KeychainVault()),
-    )
+    window = MainWindow(Board(), settings_store=store, test_build=test_build(), password=password, vault=vault)
     window.show()
-    window.load_from(tasks_folder(), notes_folder=notes_folder())
+    window.load_from(tasks, notes_folder=notes)
     code = app.exec()
     del window  # its web view must go before the web engine it uses, which the QApplication takes down
     return code

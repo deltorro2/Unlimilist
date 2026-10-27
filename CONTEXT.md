@@ -111,6 +111,14 @@ _Avoid_: Overdue, old, expired
 **Completed on**:
 The date a Task entered Done. Done is ordered by it, most recent first.
 
+**Vault**:
+The folder that holds all of the user's Tasks and Notes, and nothing else: settings and the Notebook password stay on each Mac. Any folder the user can write to can be a Vault, including one that Dropbox, Google Drive or a similar service keeps in sync, so several Macs can share it. The app works with one Vault at a time, and each Mac remembers which one. Choosing another Vault switches to it but never moves or copies anything. The test build has no Vault: it always reads its own test folders.
+_Avoid_: Data folder, library, workspace, database
+
+**Setup**:
+The short guide shown when the app starts with no Vault chosen: a welcome, then opening an existing Vault or creating a new one, then the Notebook password if this Mac has none yet.
+_Avoid_: Onboarding, first-run wizard, installer
+
 **Notebook**:
 The second view of the app, next to the Board (the sidebar names them Tasks and Notebook): a table of all Notes, most recently opened or created first. Choosing a Note opens it in place of the table.
 _Avoid_: Notes view, library, Dashboard
@@ -160,5 +168,5 @@ A Note whose Body is encrypted and can be read only with the Notebook password. 
 _Avoid_: Private, locked, hidden
 
 **Notebook password**:
-The one password that opens every Secured Note. It is asked for the first time a Secured Note is opened and is then remembered until the app quits. Every password typed is checked against the copy kept in the macOS Keychain, never in the app's own files.
+The one password that opens every Secured Note. It is asked for the first time a Secured Note is opened and is then remembered until the app quits. Every password typed is checked against the copy kept in the macOS Keychain, never in the app's own files. It belongs to the app on this Mac, not to a Vault: every Vault opened on this Mac uses it, so a Vault shared between Macs needs the same password on each.
 _Avoid_: Note password, PIN

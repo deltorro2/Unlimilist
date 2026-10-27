@@ -107,38 +107,33 @@ The Board doesn't just list Tasks. It orders them.
 
 - **Plain files.** Every Task and every Note is one Markdown file with a small YAML header, readable in any editor and easy to back up, sync or version.
 - **Local only.** No account, no telemetry, no internet connection required.
-- **Sync with the tools you already use.** Because everything is plain files in one folder, set it as a sync folder in Google Drive, Dropbox, Syncthing or a similar service, and your Tasks and Notes stay in step across Macs, with file history for free (see [Sync across Macs](#sync-across-macs)).
+- **Your Vault, where you want it.** All Tasks and Notes live in one folder of your choice, your Vault, picked the first time UnlimiList starts and changeable any time in Settings › My Vault.
+- **Sync with the tools you already use.** Put the Vault in a Dropbox, Google Drive, iCloud Drive or similar folder, and your Tasks and Notes stay in step across Macs, with file history for free (see [Sync across Macs](#sync-across-macs)).
 - **Recoverable.** Deleted Tasks and Notes are renamed, not erased. The only exception is Secured Notes, which are removed for good.
 
 | Location | Contents |
 |---|---|
-| `~/Library/Application Support/Unlimilist/tasks` | Tasks |
-| `~/Library/Application Support/Unlimilist/notes` | Notes and the search index |
-| `~/Library/Application Support/Unlimilist/settings.json` | Settings |
+| `<your Vault>/tasks` | Tasks |
+| `<your Vault>/notes` | Notes and the search index |
+| `~/Library/Application Support/Unlimilist/settings.json` | Settings, including where your Vault is (kept on each Mac) |
 | macOS Keychain, item "Unlimilist" | The Notebook password for Secured Notes |
 
 ## Sync across Macs
 
-All of UnlimiList's data lives in one folder, so a file-sync service can keep it in step across Macs:
+Your Vault is one ordinary folder, so a file-sync service can keep it in step across Macs.
 
-```text
-~/Library/Application Support/Unlimilist
-```
+**Setting up.** The first time UnlimiList starts, Setup asks whether you already have a Vault:
 
-**Point your sync tool at that folder.** Services that can sync any folder you choose can sync UnlimiList's folder directly, with nothing moved: for example, Google Drive for desktop (*Preferences › My Mac › Add folder*), Syncthing or Resilio Sync. To reach the folder in Finder, use *Go › Go to Folder…* (⇧⌘G) and paste the path above. Do the same on every Mac.
+- On your first Mac, choose **No, create a new Vault** and pick a location inside your Dropbox, Google Drive, iCloud Drive or OneDrive folder.
+- On every other Mac, once the sync has brought the folder over, choose **Yes, open my Vault** and pick that same folder.
 
-**For Dropbox, iCloud Drive or OneDrive**, which sync only their own folder, move UnlimiList's folder into theirs and leave a link in its place. Quit UnlimiList first. For Dropbox:
+To move an existing Vault, quit UnlimiList, move the folder in Finder, then open UnlimiList and choose the folder in **Settings › My Vault › Change…** (or in Setup, or when UnlimiList says the Vault can't be found). UnlimiList never moves or copies your files itself.
 
-```sh
-mv ~/Library/Application\ Support/Unlimilist ~/Dropbox/Unlimilist
-ln -s ~/Dropbox/Unlimilist ~/Library/Application\ Support/Unlimilist
-```
-
-On each other Mac, only make the link (`ln -s …`). For the other services, use their folder instead of `~/Dropbox`.
-
-Either way:
+Keep in mind:
 - UnlimiList reads its files when it starts. Let the sync finish before you open it, and use it on one Mac at a time, so the same file isn't edited in two places.
-- The Notebook password lives in each Mac's Keychain and isn't synced. On another Mac, the first time you open a Secured Note, type the same password; it's then stored in that Mac's Keychain too.
+- If the Vault isn't there when UnlimiList starts (an unplugged drive, a sync still running), it asks you to try again, choose another folder or quit. It never makes an empty Vault in its place.
+- The Notebook password belongs to UnlimiList on each Mac, in that Mac's Keychain, and isn't synced. Every Vault opened on that Mac uses it. If this Mac has no password yet, Setup asks for it, and checks it against the Vault's Secured Notes, so type the same one as on your other Mac.
+- Settings such as the card font size stay on each Mac.
 
 ## Keyboard shortcuts
 
@@ -207,14 +202,15 @@ src/unlimilist/
   note_search.py   the Notebook search: Exact and Partial matches, and its index file
   secure.py        encrypting a Secured Note's Body (AES-GCM, scrypt)
   notebook_password.py  the Notebook password, checked against the Keychain
-  settings.py      settings.json: the user's settings, such as the card font size and when Tasks turn Stale
-  app.py           startup, styles, the data folder
-  data_folders.py  which folders a run reads: tasks and notes (normal build), or test and test-notes
+  settings.py      settings.json: the user's settings, such as the card font size, when Tasks turn Stale, the Vault
+  vault.py         the Vault: its tasks and notes folders, and whether a password opens its Secured Notes
+  app.py           startup, styles; finds the Vault, or the test folders in a test build
+  data_folders.py  normal or test build, and the test build's fixed test and test-notes folders
   ui/              the Qt widgets: main window, Columns, cards, Task dialog, Notebook, Show Note, Settings,
-                   sidebar, password dialogs, loading card
+                   sidebar, password dialogs, loading card, Setup (choosing the Vault)
 tests/             test_board.py (domain), test_notebook.py, test_note_import.py, test_secured_notes.py,
                    test_note_search.py, test_ui.py, test_notebook_ui.py, test_note_search_ui.py, test_settings.py, test_stale.py, test_highlight.py, test_fold_done.py,
-                   test_loading.py, test_delete_and_duplicate.py, test_data_folders.py
+                   test_loading.py, test_delete_and_duplicate.py, test_data_folders.py, test_vault.py, test_setup.py
 scripts/           build_app.sh, build_dmg.sh, setup_intel_env.sh, make_test_tasks.py, make_test_notes.py,
                    readme_screenshots.py
 docs/adr/          architecture decision records
@@ -230,8 +226,8 @@ CONTEXT.md         the glossary: the words the code and the UI use
 ./scripts/build_app.sh --test        # dist/Unlimilist Test.app: for manual testing, reads the test folders
 ```
 
-- **Normal or test:** only a packaged normal build reads your real Tasks and Notes.
-  - The test build reads the `test` and `test-notes` folders and shows an orange **TEST** tag after the version.
+- **Normal or test:** only a packaged normal build reads your real Tasks and Notes, from your Vault.
+  - The test build reads the fixed `test` and `test-notes` folders in the app-data folder and shows an orange **TEST** tag after the version. It has no Vault: it never runs Setup, has no My Vault tab and never changes the Vault setting ([ADR 0007](docs/adr/0007-the-vault-location-is-kept-per-mac.md)).
   - It has its own bundle id (`com.unlimilist.app.test`), so it can sit beside the real app and run at the same time.
   - Each test build refreshes the test Tasks and Notes in its folders.
   - It shares your settings and your Notebook password (the Keychain entry) with the real app.
@@ -245,7 +241,7 @@ CONTEXT.md         the glossary: the words the code and the UI use
 
 ## Data
 
-Each Task is one Markdown file in the app-data folder: in `tasks` for the normal build, and in `test` for the test build and runs from source. Notes work the same way, in `notes` and `test-notes`.
+Each Task is one Markdown file in the Vault's `tasks` folder, and each Note one in its `notes` folder. The Vault is chosen in Setup and its path is kept in `settings.json` in the app-data folder. The test build and runs from source use `test` and `test-notes` in the app-data folder instead.
 
 | OS | App-data folder |
 |---|---|
@@ -296,8 +292,8 @@ Alfama and tram 28
 - A deleted Task's or Open Note's file is renamed to end in `-deleted` and never loaded again. Rename it back to restore it. A deleted Secured Note's file is removed for good.
 - The Notebook search keeps a word index of the Open Notes in `.search-index.json` in the notes folder. It is rebuilt if it's missing or out of date, so it's safe to delete. Secured Notes are never in it.
 - The Notebook password is kept only in your Keychain, under "Unlimilist". Without it, Secured Notes can't be read.
-- Your settings, such as the card font size, are kept in `settings.json` next to the `tasks` folder, shared by both builds. Delete it to go back to the defaults.
-- To back up, copy the `Unlimilist` folder.
+- Your settings, such as the card font size and the Vault's path, are kept in `settings.json` in the app-data folder, shared by both builds. Delete it to go back to the defaults; the next start then runs Setup.
+- To back up, copy your Vault folder.
 
 **Test data.** The test folder holds 26 made-up Tasks that exercise every feature; `build_app.sh --test` refreshes them. To refresh them by hand, quit the test app and run:
 

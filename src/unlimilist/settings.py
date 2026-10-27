@@ -17,6 +17,7 @@ class Settings:
     mark_stale: bool = True
     stale_inbox_days: int = StaleLimits().inbox
     stale_in_process_days: int = StaleLimits().in_process
+    vault: str | None = None  # the Vault's full path; None until Setup has chosen one. The test build ignores it.
 
     @property
     def stale_limits(self) -> StaleLimits | None:
@@ -40,6 +41,7 @@ class SettingsStore:
             return Settings()
         defaults = Settings()
         mark_stale = data.get("mark_stale")
+        vault = data.get("vault")
         return Settings(
             card_font_size=_number(data.get("card_font_size"), CARD_FONT_SIZES, defaults.card_font_size),
             mark_stale=mark_stale if isinstance(mark_stale, bool) else defaults.mark_stale,
@@ -47,6 +49,7 @@ class SettingsStore:
             stale_in_process_days=_number(
                 data.get("stale_in_process_days"), STALE_DAYS, defaults.stale_in_process_days
             ),
+            vault=vault if isinstance(vault, str) and Path(vault).is_absolute() else None,
         )
 
     def save(self, settings: Settings) -> None:

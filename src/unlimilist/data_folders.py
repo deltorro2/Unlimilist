@@ -1,5 +1,6 @@
-"""Where Tasks and Notes are read from. Only a packaged normal build reads your real ones; a test build (made
-with `build_app.sh --test`) and running from source read the test folders, so manual testing never touches them."""
+"""Which build is running. Only a packaged normal build reads your real Tasks and Notes, from the Vault (see
+vault.py); a test build (made with `build_app.sh --test`) and running from source read the fixed test folders,
+so manual testing never touches them."""
 
 from pathlib import Path
 
@@ -11,9 +12,9 @@ def is_test_build(frozen: bool, package_dir: Path) -> bool:
     return not frozen or (package_dir / TEST_MARKER).exists()
 
 
-def tasks_folder(app_data: Path, test: bool) -> Path:
-    return app_data / ("test" if test else "tasks")
+def folder_for_test_tasks(app_data: Path) -> Path:
+    return app_data / "test"
 
 
-def notes_folder(app_data: Path, test: bool) -> Path:
-    return app_data / ("test-notes" if test else "notes")
+def folder_for_test_notes(app_data: Path) -> Path:
+    return app_data / "test-notes"

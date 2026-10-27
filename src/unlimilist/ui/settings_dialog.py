@@ -1,9 +1,11 @@
 """The Settings window: one tab per area. Board view has the Card font size; Notebook has the Notebook password;
-Governance has when Tasks turn Stale."""
+Governance has when Tasks turn Stale; My Vault (not in the test build) has where the Tasks and Notes are."""
 
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -57,8 +59,9 @@ class SettingsDialog(QDialog):
     cardFontSizeChanged = Signal(int)
     changePasswordClicked = Signal()
     staleSettingsChanged = Signal(bool, int, int)  # mark Stale Tasks, Inbox days, In Process days
+    changeVaultClicked = Signal()
 
-    def __init__(self, settings: Settings, parent=None, has_password: bool = False):
+    def __init__(self, settings: Settings, parent=None, has_password: bool = False, vault: Path | None = None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
         self.setObjectName("settingsDialog")
@@ -67,6 +70,8 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._build_board_view(settings), "Board view")
         self.tabs.addTab(self._build_notebook(has_password), "Notebook")
         self.tabs.addTab(self._build_governance(settings), "Governance")
+        if vault is not None:  # the test build has no Vault
+            self.tabs.addTab(self._build_my_vault(vault), "My Vault")
 
         self.close_button = QPushButton("Close")
         self.close_button.setDefault(True)
@@ -193,6 +198,42 @@ class SettingsDialog(QDialog):
         layout.addLayout(switch_row)
         layout.addWidget(hint)
         layout.addLayout(days)
+        layout.addStretch(1)
+        return page
+
+    def _build_my_vault(self, vault: Path) -> QWidget:
+        heading = QLabel("Vault")
+        heading.setObjectName("settingsHeading")
+        self.vault_path = QLabel(str(vault))
+        self.vault_path.setObjectName("vaultPath")
+        self.vault_path.setWordWrap(True)
+        self.vault_path.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        hint = QLabel(
+            "The folder that keeps all your Tasks and Notes. Change… switches to another folder: an existing Vault, "
+            "or an empty folder for a new one. Nothing is moved or copied, so your current Vault stays as it is."
+        )
+        hint.setObjectName("settingsHint")
+        hint.setWordWrap(True)
+        self.show_vault_button = QPushButton("Show in Finder")
+        self.show_vault_button.setAutoDefault(False)
+        self.show_vault_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(vault))))
+        self.change_vault_button = QPushButton("Change…")
+        self.change_vault_button.setAutoDefault(False)
+        self.change_vault_button.clicked.connect(self.changeVaultClicked)
+        buttons = QHBoxLayout()
+        buttons.setSpacing(10)
+        buttons.addWidget(self.show_vault_button)
+        buttons.addWidget(self.change_vault_button)
+        buttons.addStretch(1)
+
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+        layout.addWidget(heading)
+        layout.addWidget(self.vault_path)
+        layout.addWidget(hint)
+        layout.addLayout(buttons)
         layout.addStretch(1)
         return page
 

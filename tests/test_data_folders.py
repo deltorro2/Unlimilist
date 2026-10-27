@@ -1,9 +1,9 @@
-"""Normal and test builds: only a packaged normal build reads your real Tasks and Notes."""
+"""Normal and test builds: only a packaged normal build reads your real Tasks and Notes, from the Vault."""
 
 import importlib.util
 from pathlib import Path
 
-from unlimilist.data_folders import TEST_MARKER, is_test_build, notes_folder, tasks_folder
+from unlimilist.data_folders import TEST_MARKER, folder_for_test_notes, folder_for_test_tasks, is_test_build
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -20,14 +20,9 @@ def test_a_packaged_build_is_normal_unless_it_carries_the_test_marker(tmp_path):
     assert is_test_build(frozen=True, package_dir=tmp_path)
 
 
-def test_the_normal_build_reads_tasks_and_the_test_build_reads_test(tmp_path):
-    assert tasks_folder(tmp_path, test=False) == tmp_path / "tasks"
-    assert tasks_folder(tmp_path, test=True) == tmp_path / "test"
-
-
-def test_the_normal_build_keeps_notes_in_notes_and_the_test_build_in_test_notes(tmp_path):
-    assert notes_folder(tmp_path, test=False) == tmp_path / "notes"
-    assert notes_folder(tmp_path, test=True) == tmp_path / "test-notes"
+def test_the_test_build_reads_the_fixed_test_folders_beside_the_settings(tmp_path):
+    assert folder_for_test_tasks(tmp_path) == tmp_path / "test"
+    assert folder_for_test_notes(tmp_path) == tmp_path / "test-notes"
 
 
 def test_the_test_tasks_script_writes_to_the_test_folder_by_default():

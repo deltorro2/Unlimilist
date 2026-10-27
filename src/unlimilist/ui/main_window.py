@@ -34,6 +34,8 @@ from unlimilist.ui.notebook_view import NotebookView
 from unlimilist.ui.settings_dialog import SettingsDialog
 from unlimilist.ui.sidebar import Sidebar
 from unlimilist.ui.task_dialog import TaskDialog
+from unlimilist.ui import setup
+from unlimilist.vault import notes_folder, tasks_folder
 
 _TEN_MINUTES_MS = 10 * 60 * 1000
 _APP_NAME = "UnlimiList"
@@ -44,6 +46,7 @@ _DELETE_TEXT = "Delete Task"
 _DELETE_SELECT_TEXT = "Select Tasks in Inbox or Done"
 _DELETE_CONFIRM_TEXT = "Delete"
 _MINIMUM_LOADING_MS = 5000  # the loading card shows at least this long on every start
+_SWITCH_LOADING_MS = 800  # and this long when switching to another Vault
 
 
 class MainWindow(QMainWindow):
@@ -56,8 +59,10 @@ class MainWindow(QMainWindow):
         test_build: bool = False,
         notebook: Notebook | None = None,
         password: NotebookPassword | None = None,
+        vault: Path | None = None,
     ):
         super().__init__(parent)
+        self._vault = vault  # None in the test build, which reads the fixed test folders
         self._board = board
         self._notebook = notebook or Notebook()
         # Without one (as in tests) the Notebook password lives only in memory, never in the Keychain.
@@ -262,9 +267,10 @@ class MainWindow(QMainWindow):
     # Settings
 
     def open_settings(self) -> None:
-        dialog = SettingsDialog(self._settings, parent=self, has_password=self._password.exists())
+        dialog = SettingsDialog(self._settings, parent=self, has_password=self._password.exists(), vault=self._vault)
         dialog.cardFontSizeChanged.connect(self._set_card_font_size)
         dialog.staleSettingsChanged.connect(self._set_stale_settings)
+        dialog.changeVaultClicked.connect(lambda: self._change_vault(dialog))
         dialog.changePasswordClicked.connect(self.change_password)
         dialog.exec()
 
@@ -294,6 +300,32 @@ class MainWindow(QMainWindow):
         if self._settings_store is not None:
             self._settings_store.save(self._settings)
         self.board_view.set_card_font_size(size)
+
+    def vault(self) -> Path | None:
+        return self._vault
+
+    def _change_vault(self, dialog: QDialog) -> None:
+        """Pick another Vault; once confirmed, Settings closes and the app switches to it."""
+        folder = setup.pick_vault(dialog, self._vault.parent, switching=True)
+        if folder is None or folder == self._vault:
+            return
+        dialog.accept()
+        self.switch_vault(folder)
+
+    def switch_vault(self, folder: Path) -> None:
+        """Save what is open in the current Vault, remember the new one, then reload the Board and the Notebook
+        from it behind the loading card. Nothing is moved or copied."""
+        if self.notebook_view.is_showing_note():
+            self.notebook_view.show_table()
+        self.notebook_view.save_now()
+        self.notebook_view.flush_search_index()
+        self.notebook_view.clear_search()
+        self._vault = folder
+        self._settings = replace(self._settings, vault=str(folder))
+        if self._settings_store is not None:
+            self._settings_store.save(self._settings)
+        self.clear_tag_filter()
+        self.load_from(tasks_folder(folder), minimum_ms=_SWITCH_LOADING_MS, notes_folder=notes_folder(folder))
 
     def _set_stale_settings(self, mark: bool, inbox_days: int, in_process_days: int) -> None:
         """Redraw the Board at once and remember the Governance settings."""
